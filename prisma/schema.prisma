@@ -1,0 +1,26 @@
+// Prisma schema for tix-ist API.
+// Grown incrementally per feature slice; see docs/data-model.md for the full
+// target model. Money is stored as BigInt minor units; default currency NGN.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/// Application user / principal. Acts as event organizer and (later) team member.
+/// JWT auth reuses the bcrypt `password` hash; NextAuth adapter tables are dropped.
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  password      String? // bcrypt hash; null for not-yet-set / external identities
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

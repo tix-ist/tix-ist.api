@@ -1,3 +1,4 @@
+import { describe, expect, it, jest } from '@jest/globals';
 import { ConfigService } from '@nestjs/config';
 import { buildPinoOptions } from './logger.config';
 

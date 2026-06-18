@@ -3,6 +3,7 @@ import {
   IsEnum,
   IsInt,
   IsOptional,
+  Matches,
   Max,
   Min,
   validateSync,
@@ -36,6 +37,13 @@ export class EnvironmentVariables {
   @IsOptional()
   @IsEnum(LogLevel)
   LOG_LEVEL?: LogLevel;
+
+  // Composed from the DB_* parts via dotenv variable expansion (see .env.example).
+  // Validated here as the effective connection string Prisma will use.
+  @Matches(/^postgres(ql)?:\/\/.+/, {
+    message: 'DATABASE_URL must be a postgres(ql):// connection string',
+  })
+  DATABASE_URL!: string;
 }
 
 /**

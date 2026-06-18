@@ -34,22 +34,22 @@ REST endpoints. See **[`docs/`](./docs/)** for the full design.
 
 ## 🏗️ Tech Stack
 
-| Category            | Technology                                                                                                          |
-| ------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| **Framework**       | [NestJS 11](https://nestjs.com/) (Express platform)                                                                 |
-| **Language**        | [TypeScript 5](https://www.typescriptlang.org/)                                                                     |
-| **API style**       | REST, documented via [OpenAPI 3.1](./docs/openapi.yaml) (Swagger _planned_)                                         |
-| **Config**          | [@nestjs/config](https://docs.nestjs.com/techniques/configuration) with validated env (class-validator)             |
-| **Logging**         | [nestjs-pino](https://github.com/iamolegga/nestjs-pino) (Pino) — structured JSON, request-id correlation, redaction |
-| **Database**        | [PostgreSQL](https://www.postgresql.org/) via [Prisma](https://www.prisma.io/) _(planned)_                          |
-| **Auth**            | JWT bearer + event/module RBAC guards _(planned)_                                                                   |
-| **Validation**      | env via class-validator; request DTOs _(planned)_                                                                   |
-| **Email**           | Pluggable adapter — [Resend](https://resend.com/) (first impl) _(planned)_                                          |
-| **Storage**         | Pluggable adapter — local / S3 / R2 _(planned)_                                                                     |
-| **Payments**        | Pluggable processor — free (MVP); Stripe/Paystack _(future)_                                                        |
-| **Scheduler**       | [@nestjs/schedule](https://docs.nestjs.com/techniques/task-scheduling) _(planned)_                                  |
-| **Package Manager** | [Yarn](https://yarnpkg.com/)                                                                                        |
-| **Testing**         | [Jest](https://jestjs.io/) (unit + e2e)                                                                             |
+| Category            | Technology                                                                                                                   |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| **Framework**       | [NestJS 11](https://nestjs.com/) (Express platform)                                                                          |
+| **Language**        | [TypeScript 5](https://www.typescriptlang.org/)                                                                              |
+| **API style**       | REST, documented via [OpenAPI 3.1](./docs/openapi.yaml) (Swagger _planned_)                                                  |
+| **Config**          | [@nestjs/config](https://docs.nestjs.com/techniques/configuration) with validated env (class-validator)                      |
+| **Logging**         | [nestjs-pino](https://github.com/iamolegga/nestjs-pino) (Pino) — structured JSON, request-id correlation, redaction          |
+| **Database**        | [PostgreSQL](https://www.postgresql.org/) via [Prisma 6](https://www.prisma.io/) — `DATABASE_URL` composed from `DB_*` parts |
+| **Auth**            | JWT bearer + event/module RBAC guards _(planned)_                                                                            |
+| **Validation**      | env via class-validator; request DTOs _(planned)_                                                                            |
+| **Email**           | Pluggable adapter — [Resend](https://resend.com/) (first impl) _(planned)_                                                   |
+| **Storage**         | Pluggable adapter — local / S3 / R2 _(planned)_                                                                              |
+| **Payments**        | Pluggable processor — free (MVP); Stripe/Paystack _(future)_                                                                 |
+| **Scheduler**       | [@nestjs/schedule](https://docs.nestjs.com/techniques/task-scheduling) _(planned)_                                           |
+| **Package Manager** | [Yarn](https://yarnpkg.com/)                                                                                                 |
+| **Testing**         | [Jest](https://jestjs.io/) (unit + e2e)                                                                                      |
 
 ---
 
@@ -87,8 +87,15 @@ PORT="3000"
 LOG_LEVEL="debug"                # fatal|error|warn|info|debug|trace|silent (optional)
 APP_URL="http://localhost:3000"
 
-# Database
-DATABASE_URL="postgresql://user:password@localhost:5432/events_ting"
+# Database — composed from parts; DATABASE_URL is built via dotenv expansion
+DB_SCHEME="postgresql"
+DB_HOST="localhost"
+DB_PORT="5432"
+DB_USER="postgres"
+DB_PASSWORD="postgres"
+DB_NAME="tixist"
+DB_SCHEMA="public"
+DATABASE_URL="${DB_SCHEME}://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}?schema=${DB_SCHEMA}"
 
 # Auth (JWT)
 JWT_SECRET="generate-with: openssl rand -base64 32"
@@ -117,14 +124,15 @@ Current scaffold plus the target layout from the architecture doc (planned modul
 
 ```
 src/
-├── main.ts                  # Bootstrap (+ Swagger, planned)
-├── app.module.ts            # Root module
+├── main.ts                  # Bootstrap: bufferLogs + Pino logger + ConfigService port
+├── app.module.ts            # Root module (ConfigModule, LoggerModule, PrismaModule)
 ├── app.controller.ts        # Scaffold controller
 ├── app.service.ts           # Scaffold service
+├── config/                  # env.validation (typed env) + logger.config (pino options)
+├── prisma/                  # PrismaModule (global) + PrismaService
 │
 │  # ── Planned (per docs/architecture.md §7) ──
 ├── common/                  # Guards (JWT, EventAccess, Module, Owner), decorators, filters
-├── prisma/                  # PrismaModule + schema (ported from source)
 ├── auth/                    # Login, register, JWT strategy
 ├── users/
 ├── events/
@@ -144,6 +152,7 @@ src/
     ├── storage/             # StorageAdapter (local/S3/R2)
     └── payment/             # PaymentProcessor (free/stripe/paystack)
 
+prisma/                      # schema.prisma (+ migrations/ once generated)
 docs/                        # Design documentation (see below)
 test/                        # Jest e2e tests
 ```

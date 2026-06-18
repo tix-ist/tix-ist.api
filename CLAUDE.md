@@ -11,7 +11,12 @@ that contract**, not improvised.
   `class-validator` in `src/config/env.validation.ts`; structured logging via `nestjs-pino`
   (`src/config/logger.config.ts`) — JSON in prod, pretty in dev, `x-request-id` correlation,
   header redaction. Log via the injected `Logger`/`PinoLogger` from `nestjs-pino`, never `console`.
-- **Status:** early build. Scaffold + design docs are in place; feature modules, Prisma, and
+- **Database (wired):** Prisma 6 + PostgreSQL. Global `PrismaModule`/`PrismaService`
+  (`src/prisma/`); schema at `prisma/schema.prisma` grows **incrementally per feature slice**
+  (only `User` so far). `DATABASE_URL` is **composed** from `DB_*` parts via dotenv expansion
+  (`expandVariables: true`); edit the parts, not the URL. After schema changes run
+  `yarn db:migrate` (dev) and `yarn db:generate`.
+- **Status:** early build. Scaffold + design docs are in place; remaining feature modules and
   auth are being implemented. Treat anything marked _(planned)_ in the docs as not-yet-wired.
 - **Source of truth for endpoints:** [`docs/openapi.yaml`](./docs/openapi.yaml) — 105 REST
   operations across 84 paths. Also see [`docs/data-model.md`](./docs/data-model.md) and
