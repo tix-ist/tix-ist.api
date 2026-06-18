@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module';
+import { setupOpenApi } from './openapi/openapi.setup';
 
 async function bootstrap() {
   // bufferLogs so bootstrap logs are flushed through Pino once it's ready.
@@ -11,6 +12,12 @@ async function bootstrap() {
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
 
   const config = app.get(ConfigService);
+
+  // Serve the Scalar API reference outside production only.
+  if (config.get<string>('NODE_ENV') !== 'production') {
+    setupOpenApi(app);
+  }
+
   const port = config.get<number>('PORT') ?? 3000;
   await app.listen(port);
 }

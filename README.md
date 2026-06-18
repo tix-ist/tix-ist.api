@@ -34,23 +34,23 @@ REST endpoints. See **[`docs/`](./docs/)** for the full design.
 
 ## 🏗️ Tech Stack
 
-| Category            | Technology                                                                                                                             |
-| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| **Framework**       | [NestJS 11](https://nestjs.com/) (Express platform)                                                                                    |
-| **Language**        | [TypeScript 5](https://www.typescriptlang.org/)                                                                                        |
-| **API style**       | REST, documented via [OpenAPI 3.1](./docs/openapi.yaml) (Swagger _planned_)                                                            |
-| **Config**          | [@nestjs/config](https://docs.nestjs.com/techniques/configuration) with validated env (class-validator)                                |
-| **Logging**         | [nestjs-pino](https://github.com/iamolegga/nestjs-pino) (Pino) — structured JSON, request-id correlation, redaction                    |
-| **Database**        | [PostgreSQL](https://www.postgresql.org/) via [Prisma 6](https://www.prisma.io/) — `DATABASE_URL` composed from `DB_*` parts           |
-| **Auth**            | JWT access + refresh (rotation), global guard with `@Public()`; event/module RBAC _(planned)_                                          |
-| **Cache**           | [Redis](https://redis.io/) via [@nestjs/cache-manager](https://docs.nestjs.com/techniques/caching) + @keyv/redis (`tix-ist` namespace) |
-| **Validation**      | class-validator DTOs + global ValidationPipe; validated env                                                                            |
-| **Email**           | Pluggable adapter — [Resend](https://resend.com/) (first impl) _(planned)_                                                             |
-| **Storage**         | Pluggable adapter — local / S3 / R2 _(planned)_                                                                                        |
-| **Payments**        | Pluggable processor — free (MVP); Stripe/Paystack _(future)_                                                                           |
-| **Scheduler**       | [@nestjs/schedule](https://docs.nestjs.com/techniques/task-scheduling) _(planned)_                                                     |
-| **Package Manager** | [Yarn](https://yarnpkg.com/)                                                                                                           |
-| **Testing**         | [Jest](https://jestjs.io/) (unit + e2e)                                                                                                |
+| Category            | Technology                                                                                                                                                                                                                        |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Framework**       | [NestJS 11](https://nestjs.com/) (Express platform)                                                                                                                                                                               |
+| **Language**        | [TypeScript 5](https://www.typescriptlang.org/)                                                                                                                                                                                   |
+| **API style**       | REST. Runtime OpenAPI via [@nestjs/swagger](https://docs.nestjs.com/openapi/introduction), served with [Scalar](https://scalar.com/) at `/reference` (non-prod); full design contract in [docs/openapi.yaml](./docs/openapi.yaml) |
+| **Config**          | [@nestjs/config](https://docs.nestjs.com/techniques/configuration) with validated env (class-validator)                                                                                                                           |
+| **Logging**         | [nestjs-pino](https://github.com/iamolegga/nestjs-pino) (Pino) — structured JSON, request-id correlation, redaction                                                                                                               |
+| **Database**        | [PostgreSQL](https://www.postgresql.org/) via [Prisma 6](https://www.prisma.io/) — `DATABASE_URL` composed from `DB_*` parts                                                                                                      |
+| **Auth**            | JWT access + refresh (rotation), global guard with `@Public()`; event/module RBAC _(planned)_                                                                                                                                     |
+| **Cache**           | [Redis](https://redis.io/) via [@nestjs/cache-manager](https://docs.nestjs.com/techniques/caching) + @keyv/redis (`tix-ist` namespace)                                                                                            |
+| **Validation**      | class-validator DTOs + global ValidationPipe; validated env                                                                                                                                                                       |
+| **Email**           | Pluggable adapter — [Resend](https://resend.com/) (first impl) _(planned)_                                                                                                                                                        |
+| **Storage**         | Pluggable adapter — local / S3 / R2 _(planned)_                                                                                                                                                                                   |
+| **Payments**        | Pluggable processor — free (MVP); Stripe/Paystack _(future)_                                                                                                                                                                      |
+| **Scheduler**       | [@nestjs/schedule](https://docs.nestjs.com/techniques/task-scheduling) _(planned)_                                                                                                                                                |
+| **Package Manager** | [Yarn](https://yarnpkg.com/)                                                                                                                                                                                                      |
+| **Testing**         | [Jest](https://jestjs.io/) (unit + e2e)                                                                                                                                                                                           |
 
 ---
 
@@ -76,6 +76,8 @@ yarn start:dev
 ```
 
 The API listens on **http://localhost:3000** by default (configurable via `PORT`).
+Outside production, the **Scalar API reference** is served at
+**http://localhost:3000/reference** (raw spec at `/openapi.json`).
 
 ### Environment Variables
 
