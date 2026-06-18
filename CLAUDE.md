@@ -27,12 +27,25 @@ that contract**, not improvised.
   names the concrete provider. Email webhook is provider-agnostic: `POST /webhooks/email`.
 - **Auth:** JWT bearer (reuse the bcrypt `User.password` hash) + two-layer event RBAC —
   `EventAccessGuard`, `@RequireModule(...)`, `OwnerGuard`. Modules: `OVERVIEW, ATTENDEES,
-  TICKETS, SCHEDULE, SPEAKERS, CFP, COMMUNICATIONS, CHECKIN` (assignable); `SETTINGS` is
+TICKETS, SCHEDULE, SPEAKERS, CFP, COMMUNICATIONS, CHECKIN` (assignable); `SETTINGS` is
   owner-only. Owners bypass module checks.
 - **Public routes** live under `/public/*` and carry no auth.
 - **Concurrency to preserve:** transactional row-lock in self-registration (no overselling);
   optimistic lock via `expectedUpdatedAt` in ticket assignment and schedule edits.
 - **Drop the boilerplate** `post` router/module from the original; it isn't ported.
+
+## How we build
+
+- **TDD.** Every feature is built test-first: write a failing spec (`*.spec.ts` unit, or
+  `test/*.e2e-spec.ts`) that captures the behavior from `docs/openapi.yaml` / the data model,
+  watch it fail, implement the minimum to make it pass, then refactor. Don't write
+  implementation before there's a red test for it. Jest is already configured (`yarn test`,
+  `yarn test:watch`).
+- **Conventional Commits**, enforced by commitlint (`@commitlint/config-conventional`) via the
+  `commit-msg` hook. Use `type(scope): subject`, e.g. `feat(events): add create endpoint`.
+- **Git hooks (husky):** `pre-commit` runs `lint-staged` (Prettier `--write` then ESLint
+  `--fix` on staged `*.ts`; Prettier on staged json/md/yaml). `commit-msg` runs commitlint.
+  Hooks self-install via the `prepare` script on `yarn install`.
 
 ## Commands
 
@@ -48,6 +61,7 @@ yarn test:cov       # coverage
 ```
 
 Work the OpenAPI contract directly when useful:
+
 ```bash
 npx @redocly/cli lint docs/openapi.yaml
 npx openapi-typescript docs/openapi.yaml -o src/generated/api-types.ts
