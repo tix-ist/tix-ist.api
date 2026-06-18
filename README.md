@@ -126,6 +126,10 @@ CRON_SECRET="bearer-token-for-scheduler-triggered-endpoints"
 > units** (BigInt; e.g. kobo), defaulting to **NGN** — never floats. See
 > [`docs/data-model.md`](./docs/data-model.md#money-representation).
 
+> **Response format:** success responses are wrapped as `{ "data": … }` (plus
+> `{ "meta": { "nextCursor" } }` for paginated lists); errors are RFC 7807
+> `application/problem+json`. Applied globally via an interceptor + exception filter.
+
 ---
 
 ## 📂 Project Structure

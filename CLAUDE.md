@@ -51,6 +51,12 @@ that contract**, not improvised.
   `EventAccessGuard`, `@RequireModule(...)`, `OwnerGuard`. Modules: `OVERVIEW, ATTENDEES,
 TICKETS, SCHEDULE, SPEAKERS, CFP, COMMUNICATIONS, CHECKIN` (assignable); `SETTINGS` is
   owner-only. Owners bypass module checks.
+- **Response format (standardized).** Success is wrapped by a global interceptor as
+  `{ data }` (`{ data, meta: { nextCursor } }` for lists — return a `Paginated` from
+  `src/common/pagination`); 204s stay body-less. Errors are **RFC 7807 problem+json** via a
+  global filter (`src/common/filters`). Document responses with `@ApiStandardResponse(Dto)` /
+  `@ApiPaginatedResponse(Dto)` / `@ApiProblemResponse(status)` from `src/common/decorators`,
+  using response DTO classes (`*.dto.ts`) so the envelope shows up in `/reference`.
 - **Public routes** live under `/public/*` and carry no auth.
 - **Concurrency to preserve:** transactional row-lock in self-registration (no overselling);
   optimistic lock via `expectedUpdatedAt` in ticket assignment and schedule edits.

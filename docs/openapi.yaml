@@ -9,6 +9,13 @@ info:
     (e.g. `POST /events/{id}/archive`). This spec is the contract for the
     NestJS implementation.
 
+    Response format:
+      - Success responses are wrapped in an envelope: `{ "data": <payload> }`,
+        plus `{ "meta": { "nextCursor": string|null } }` for paginated lists.
+        The per-operation response schemas below describe the `data` payload.
+      - Errors use RFC 7807 `application/problem+json` (see the `Problem` schema):
+        `{ type, title, status, detail, instance, errors? }`.
+
     Authorization model:
       - Bearer JWT identifies the user.
       - Event-scoped routes require an ACTIVE TeamMember (owner or collaborator).

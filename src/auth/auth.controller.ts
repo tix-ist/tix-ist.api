@@ -1,17 +1,23 @@
 import { Body, Controller, HttpCode, Post, UseGuards } from '@nestjs/common';
 import {
   ApiBearerAuth,
-  ApiCreatedResponse,
   ApiNoContentResponse,
-  ApiOkResponse,
   ApiOperation,
   ApiTags,
-  ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
+import {
+  ApiProblemResponse,
+  ApiStandardResponse,
+} from '../common/decorators/api-standard-response.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Public } from '../common/decorators/public.decorator';
 import { AuthService } from './auth.service';
 import type { AuthUser, Tokens } from './auth.types';
+import {
+  LoginResponseDto,
+  RegisterResponseDto,
+  TokensResponseDto,
+} from './dto/auth-response.dto';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { JwtRefreshGuard } from './guards/jwt-refresh.guard';
@@ -25,7 +31,12 @@ export class AuthController {
   @Post('register')
   @HttpCode(201)
   @ApiOperation({ summary: 'Register a new user with email + password' })
-  @ApiCreatedResponse({ description: 'User created' })
+  @ApiStandardResponse(RegisterResponseDto, {
+    status: 201,
+    description: 'User created',
+  })
+  @ApiProblemResponse(409, 'Email already registered')
+  @ApiProblemResponse(400, 'Validation failed')
   async register(@Body() dto: RegisterDto): Promise<{ user: AuthUser }> {
     return { user: await this.auth.register(dto) };
   }
@@ -34,8 +45,10 @@ export class AuthController {
   @Post('login')
   @HttpCode(200)
   @ApiOperation({ summary: 'Authenticate and receive access + refresh tokens' })
-  @ApiOkResponse({ description: 'Access token, refresh token and user' })
-  @ApiUnauthorizedResponse({ description: 'Invalid credentials' })
+  @ApiStandardResponse(LoginResponseDto, {
+    description: 'Access token, refresh token and user',
+  })
+  @ApiProblemResponse(401, 'Invalid credentials')
   async login(@Body() dto: LoginDto): Promise<Tokens & { user: AuthUser }> {
     const { tokens, user } = await this.auth.login(dto);
     return { ...tokens, user };
@@ -49,8 +62,10 @@ export class AuthController {
   @ApiOperation({
     summary: 'Rotate tokens using a refresh token (Authorization: Bearer)',
   })
-  @ApiOkResponse({ description: 'A new access + refresh token pair' })
-  @ApiUnauthorizedResponse({ description: 'Missing/invalid refresh token' })
+  @ApiStandardResponse(TokensResponseDto, {
+    description: 'A new access + refresh token pair',
+  })
+  @ApiProblemResponse(401, 'Missing/invalid refresh token')
   refresh(
     @CurrentUser() user: { sub: string; refreshToken: string },
   ): Promise<Tokens> {
@@ -62,6 +77,7 @@ export class AuthController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Revoke the current refresh token' })
   @ApiNoContentResponse({ description: 'Logged out' })
+  @ApiProblemResponse(401, 'Missing/invalid access token')
   async logout(@CurrentUser() user: AuthUser): Promise<void> {
     await this.auth.logout(user.id);
   }

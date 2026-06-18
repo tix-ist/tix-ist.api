@@ -8,6 +8,7 @@ import { buildPinoOptions } from './config/logger.config';
 import { PrismaModule } from './prisma/prisma.module';
 import { CacheModule } from './cache/cache.module';
 import { AuthModule } from './auth/auth.module';
+import { CommonModule } from './common/common.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { AuthModule } from './auth/auth.module';
     }),
     PrismaModule,
     CacheModule,
+    CommonModule,
     AuthModule,
   ],
   controllers: [AppController],
