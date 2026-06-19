@@ -75,6 +75,24 @@ export class EnvironmentVariables {
   @IsInt()
   @Min(1)
   AUTH_CACHE_TTL: number = 60;
+
+  // --- CORS ---
+  // Comma-separated allowlist; only enforced in production (dev reflects any origin).
+  @IsOptional()
+  @IsString()
+  CORS_ORIGINS?: string;
+
+  // --- Rate limiting ---
+  // Window length in seconds and max requests per window.
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  THROTTLE_TTL: number = 60;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  THROTTLE_LIMIT: number = 100;
 }
 
 /**

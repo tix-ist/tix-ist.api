@@ -35,6 +35,8 @@ describe('validate (env)', () => {
     expect(result.JWT_ACCESS_TTL).toBe('15m');
     expect(result.JWT_REFRESH_TTL).toBe('7d');
     expect(result.AUTH_CACHE_TTL).toBe(60);
+    expect(result.THROTTLE_TTL).toBe(60);
+    expect(result.THROTTLE_LIMIT).toBe(100);
   });
 
   it('throws on an invalid LOG_LEVEL', () => {

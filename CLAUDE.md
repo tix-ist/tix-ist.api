@@ -61,6 +61,12 @@ TICKETS, SCHEDULE, SPEAKERS, CFP, COMMUNICATIONS, CHECKIN` (assignable); `SETTIN
   global filter (`src/common/filters`). Document responses with `@ApiStandardResponse(Dto)` /
   `@ApiPaginatedResponse(Dto)` / `@ApiProblemResponse(status)` from `src/common/decorators`,
   using response DTO classes (`*.dto.ts`) so the envelope shows up in `/reference`.
+- **Routing & hardening (wired in `main.ts`).** Routes are **URI-versioned** under `/v1`
+  (`enableVersioning`, `defaultVersion: '1'`); the health route is `@Version(VERSION_NEUTRAL)`
+  at `/`, and the Scalar docs stay unversioned (raw adapter routes). helmet (CSP off in
+  non-prod so `/reference` renders), env-driven CORS (`resolveCorsOptions`), `x-powered-by`
+  disabled, `enableShutdownHooks`, and a strict `ValidationPipe` (`forbidNonWhitelisted`). A
+  global Redis-backed `ThrottlerGuard` rate-limits everything; use `@SkipThrottle()` to exempt.
 - **Public routes** live under `/public/*` and carry no auth.
 - **Concurrency to preserve:** transactional row-lock in self-registration (no overselling);
   optimistic lock via `expectedUpdatedAt` in ticket assignment and schedule edits.

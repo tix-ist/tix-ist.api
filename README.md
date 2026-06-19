@@ -34,23 +34,24 @@ REST endpoints. See **[`docs/`](./docs/)** for the full design.
 
 ## 🏗️ Tech Stack
 
-| Category            | Technology                                                                                                                                                                                                                        |
-| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Framework**       | [NestJS 11](https://nestjs.com/) (Express platform)                                                                                                                                                                               |
-| **Language**        | [TypeScript 5](https://www.typescriptlang.org/)                                                                                                                                                                                   |
-| **API style**       | REST. Runtime OpenAPI via [@nestjs/swagger](https://docs.nestjs.com/openapi/introduction), served with [Scalar](https://scalar.com/) at `/reference` (non-prod); full design contract in [docs/openapi.yaml](./docs/openapi.yaml) |
-| **Config**          | [@nestjs/config](https://docs.nestjs.com/techniques/configuration) with validated env (class-validator)                                                                                                                           |
-| **Logging**         | [nestjs-pino](https://github.com/iamolegga/nestjs-pino) (Pino) — structured JSON, request-id correlation, redaction                                                                                                               |
-| **Database**        | [PostgreSQL](https://www.postgresql.org/) via [Prisma 6](https://www.prisma.io/) — `DATABASE_URL` composed from `DB_*` parts                                                                                                      |
-| **Auth**            | JWT access + refresh (rotation), global guard with `@Public()`; event/module RBAC _(planned)_                                                                                                                                     |
-| **Cache**           | [Redis](https://redis.io/) via [@nestjs/cache-manager](https://docs.nestjs.com/techniques/caching) + @keyv/redis (`tix-ist` namespace)                                                                                            |
-| **Validation**      | class-validator DTOs + global ValidationPipe; validated env                                                                                                                                                                       |
-| **Email**           | Pluggable adapter — [Resend](https://resend.com/) (first impl) _(planned)_                                                                                                                                                        |
-| **Storage**         | Pluggable adapter — local / S3 / R2 _(planned)_                                                                                                                                                                                   |
-| **Payments**        | Pluggable processor — free (MVP); Stripe/Paystack _(future)_                                                                                                                                                                      |
-| **Scheduler**       | [@nestjs/schedule](https://docs.nestjs.com/techniques/task-scheduling) _(planned)_                                                                                                                                                |
-| **Package Manager** | [Yarn](https://yarnpkg.com/)                                                                                                                                                                                                      |
-| **Testing**         | [Jest](https://jestjs.io/) (unit + e2e)                                                                                                                                                                                           |
+| Category            | Technology                                                                                                                                                                                                                                                       |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Framework**       | [NestJS 11](https://nestjs.com/) (Express platform)                                                                                                                                                                                                              |
+| **Language**        | [TypeScript 5](https://www.typescriptlang.org/)                                                                                                                                                                                                                  |
+| **API style**       | REST, **URI-versioned** under `/v1`. Runtime OpenAPI via [@nestjs/swagger](https://docs.nestjs.com/openapi/introduction), served with [Scalar](https://scalar.com/) at `/reference` (non-prod); full design contract in [docs/openapi.yaml](./docs/openapi.yaml) |
+| **Hardening**       | [helmet](https://helmetjs.github.io/) headers, env-driven CORS, Redis-backed rate limiting ([@nestjs/throttler](https://docs.nestjs.com/security/rate-limiting)), `x-powered-by` off, graceful shutdown                                                          |
+| **Config**          | [@nestjs/config](https://docs.nestjs.com/techniques/configuration) with validated env (class-validator)                                                                                                                                                          |
+| **Logging**         | [nestjs-pino](https://github.com/iamolegga/nestjs-pino) (Pino) — structured JSON, request-id correlation, redaction                                                                                                                                              |
+| **Database**        | [PostgreSQL](https://www.postgresql.org/) via [Prisma 6](https://www.prisma.io/) — `DATABASE_URL` composed from `DB_*` parts                                                                                                                                     |
+| **Auth**            | JWT access + refresh (rotation), global guard with `@Public()`; event/module RBAC _(planned)_                                                                                                                                                                    |
+| **Cache**           | [Redis](https://redis.io/) via [@nestjs/cache-manager](https://docs.nestjs.com/techniques/caching) + @keyv/redis (`tix-ist` namespace)                                                                                                                           |
+| **Validation**      | class-validator DTOs + global ValidationPipe; validated env                                                                                                                                                                                                      |
+| **Email**           | Pluggable adapter — [Resend](https://resend.com/) (first impl) _(planned)_                                                                                                                                                                                       |
+| **Storage**         | Pluggable adapter — local / S3 / R2 _(planned)_                                                                                                                                                                                                                  |
+| **Payments**        | Pluggable processor — free (MVP); Stripe/Paystack _(future)_                                                                                                                                                                                                     |
+| **Scheduler**       | [@nestjs/schedule](https://docs.nestjs.com/techniques/task-scheduling) _(planned)_                                                                                                                                                                               |
+| **Package Manager** | [Yarn](https://yarnpkg.com/)                                                                                                                                                                                                                                     |
+| **Testing**         | [Jest](https://jestjs.io/) (unit + e2e)                                                                                                                                                                                                                          |
 
 ---
 
@@ -110,6 +111,11 @@ JWT_REFRESH_TTL="7d"
 REDIS_URL="redis://localhost:6379"
 AUTH_CACHE_TTL="60"
 
+# CORS (prod only; comma-separated) + rate limiting
+CORS_ORIGINS=""
+THROTTLE_TTL="60"
+THROTTLE_LIMIT="100"
+
 # Email (Resend)
 RESEND_API_KEY="re_..."          # https://resend.com
 RESEND_EMAIL_FROM="no-reply@yourdomain.com"
@@ -129,6 +135,11 @@ CRON_SECRET="bearer-token-for-scheduler-triggered-endpoints"
 > **Response format:** success responses are wrapped as `{ "data": … }` (plus
 > `{ "meta": { "nextCursor" } }` for paginated lists); errors are RFC 7807
 > `application/problem+json`. Applied globally via an interceptor + exception filter.
+
+> **Routing & hardening:** routes are URI-versioned under **`/v1`** (e.g. `/v1/auth/login`);
+> the health check (`/`) and docs (`/reference`, `/openapi.json`) stay unversioned. helmet
+> headers, env-driven CORS, and Redis-backed rate limiting are applied globally; `x-powered-by`
+> is disabled.
 
 ---
 
