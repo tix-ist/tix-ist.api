@@ -1,10 +1,6 @@
 import { Body, Controller, HttpCode, Post, UseGuards } from '@nestjs/common';
-import {
-  ApiBearerAuth,
-  ApiNoContentResponse,
-  ApiOperation,
-  ApiTags,
-} from '@nestjs/swagger';
+import { ApiBearerAuth, ApiNoContentResponse, ApiTags } from '@nestjs/swagger';
+import { ApiTag } from '../openapi/api-tags';
 import {
   ApiProblemResponse,
   ApiStandardResponse,
@@ -22,15 +18,19 @@ import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { JwtRefreshGuard } from './guards/jwt-refresh.guard';
 
-@ApiTags('Auth')
+@ApiTags(ApiTag.Auth)
 @Controller('auth')
 export class AuthController {
   constructor(private readonly auth: AuthService) {}
 
+  /**
+   * Register a new user.
+   * @remarks Creates an account from an email + password (the password is bcrypt-hashed).
+   * Does not log the user in — call `POST /auth/login` afterwards to obtain tokens.
+   */
   @Public()
   @Post('register')
   @HttpCode(201)
-  @ApiOperation({ summary: 'Register a new user with email + password' })
   @ApiStandardResponse(RegisterResponseDto, {
     status: 201,
     description: 'User created',
@@ -41,10 +41,14 @@ export class AuthController {
     return { user: await this.auth.register(dto) };
   }
 
+  /**
+   * Log in with email and password.
+   * @remarks Returns a short-lived access token and a longer-lived refresh token (plus the
+   * user). Send the access token as `Authorization: Bearer <accessToken>` on protected routes.
+   */
   @Public()
   @Post('login')
   @HttpCode(200)
-  @ApiOperation({ summary: 'Authenticate and receive access + refresh tokens' })
   @ApiStandardResponse(LoginResponseDto, {
     description: 'Access token, refresh token and user',
   })
@@ -54,14 +58,16 @@ export class AuthController {
     return { ...tokens, user };
   }
 
+  /**
+   * Rotate the token pair using a refresh token.
+   * @remarks Send the refresh token as `Authorization: Bearer <refreshToken>`. On success the
+   * old refresh token is invalidated (rotation) and a fresh access + refresh pair is returned.
+   */
   @Public()
   @UseGuards(JwtRefreshGuard)
   @Post('refresh')
   @HttpCode(200)
   @ApiBearerAuth()
-  @ApiOperation({
-    summary: 'Rotate tokens using a refresh token (Authorization: Bearer)',
-  })
   @ApiStandardResponse(TokensResponseDto, {
     description: 'A new access + refresh token pair',
   })
@@ -72,10 +78,14 @@ export class AuthController {
     return this.auth.refresh(user.sub, user.refreshToken);
   }
 
+  /**
+   * Log out the current user.
+   * @remarks Revokes the stored refresh token so it can no longer be used to mint new
+   * access tokens. Requires a valid access token.
+   */
   @Post('logout')
   @HttpCode(204)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Revoke the current refresh token' })
   @ApiNoContentResponse({ description: 'Logged out' })
   @ApiProblemResponse(401, 'Missing/invalid access token')
   async logout(@CurrentUser() user: AuthUser): Promise<void> {

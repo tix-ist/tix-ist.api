@@ -1,16 +1,20 @@
 import { Controller, Get } from '@nestjs/common';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiTags } from '@nestjs/swagger';
 import { AppService } from './app.service';
 import { Public } from './common/decorators/public.decorator';
+import { ApiTag } from './openapi/api-tags';
 
-@ApiTags('Health')
+@ApiTags(ApiTag.Health)
 @Controller()
 export class AppController {
   constructor(private readonly appService: AppService) {}
 
+  /**
+   * Liveness check.
+   * @remarks Returns a static greeting; use it to confirm the service is up.
+   */
   @Public()
   @Get()
-  @ApiOperation({ summary: 'Liveness check' })
   getHello(): string {
     return this.appService.getHello();
   }

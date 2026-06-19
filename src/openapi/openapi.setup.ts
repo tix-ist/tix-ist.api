@@ -1,7 +1,8 @@
 import { INestApplication } from '@nestjs/common';
-import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { SwaggerModule } from '@nestjs/swagger';
 import { apiReference } from '@scalar/nestjs-api-reference';
 import type { Request, Response } from 'express';
+import { buildDocumentConfig } from './document-config';
 
 /**
  * Builds the OpenAPI document from the @nestjs/swagger decorators and serves it:
@@ -11,14 +12,7 @@ import type { Request, Response } from 'express';
  * Call only outside production (the reference is dev/staging-facing).
  */
 export function setupOpenApi(app: INestApplication): void {
-  const config = new DocumentBuilder()
-    .setTitle('tix-ist API')
-    .setDescription('Standalone event-management API')
-    .setVersion('0.1.0')
-    .addBearerAuth()
-    .build();
-
-  const document = SwaggerModule.createDocument(app, config);
+  const document = SwaggerModule.createDocument(app, buildDocumentConfig());
 
   const http = app.getHttpAdapter();
   http.get('/openapi.json', (_req: Request, res: Response) => {

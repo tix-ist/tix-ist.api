@@ -24,11 +24,15 @@ that contract**, not improvised.
 - **Cache (wired):** global Redis `CacheModule` (`@nestjs/cache-manager` + `@keyv/redis`),
   keys namespaced under `tix-ist` (see [[cache-global-prefix]] memory).
 - **API docs (wired):** runtime OpenAPI generated from `@nestjs/swagger` decorators (CLI
-  plugin enabled in `nest-cli.json`); served with Scalar at `/reference` + raw spec at
-  `/openapi.json`, **non-production only** (`src/openapi/openapi.setup.ts`). Decorate new
-  controllers with `@ApiTags`/`@ApiOperation`/`@ApiResponse` (and `@ApiBearerAuth` on
-  protected routes). Note: this generated spec reflects _implemented_ endpoints; the
-  hand-written `docs/openapi.yaml` remains the full design contract.
+  plugin with `introspectComments` in `nest-cli.json`); served with Scalar at `/reference` +
+  raw spec at `/openapi.json`, **non-production only** (`src/openapi/openapi.setup.ts`).
+  Document the surface with **JSDoc**: a controller method's comment → operation `summary`,
+  its `@remarks` → `description`; DTO property comments → field `description` (+ `@example`).
+  Tags come from the central registry `src/openapi/api-tags.ts` — reference `@ApiTags(ApiTag.X)`
+  and add new tags (with full descriptions) there. Still decorate responses with
+  `@ApiStandardResponse`/`@ApiProblemResponse` and `@ApiBearerAuth` on protected routes.
+  This generated spec reflects _implemented_ endpoints; the hand-written `docs/openapi.yaml`
+  remains the full design contract.
 - **Status:** early build. Scaffold + design docs are in place; remaining feature modules are
   being implemented. Treat anything marked _(planned)_ in the docs as not-yet-wired.
 - **Source of truth for endpoints:** [`docs/openapi.yaml`](./docs/openapi.yaml) — 105 REST
