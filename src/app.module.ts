@@ -11,6 +11,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { CacheModule } from './cache/cache.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
+import { EventsModule } from './events/events.module';
 import { CommonModule } from './common/common.module';
 
 @Module({
@@ -47,6 +48,7 @@ import { CommonModule } from './common/common.module';
     CommonModule,
     AuthModule,
     UsersModule,
+    EventsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

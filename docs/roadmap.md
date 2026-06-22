@@ -32,12 +32,17 @@ Establishes the user surface, the core `Event` resource, and the RBAC that gates
 
 - 🟡 **Users / `/me`** — `GET`/`PATCH /me`, `POST /me/change-password` done.
   Deferred (need Event/Registration): `DELETE /me`, `GET /me/events-summary`, profile event/attendee counts.
-- ⬜ **Events** — CRUD, slug, `draft → published → archived` status flow, custom registration fields,
-  `POST /events/{id}/archive`. Adds the `Event` model. _Unblocks most later modules._
+- 🟡 **Events** — `Event` model + organizer CRUD (create/list-mine/status-counts/get/update/delete),
+  `draft → published → archived` flow (`archive`/`restore`), custom fields, and a public discovery
+  surface (`/public/events`, `/public/events/{slug}` — published only). Ownership is an `organizerId`
+  check for now (swaps to RBAC guards in the next slice). Deferred: `GET /events/{id}/metrics` and
+  list relation-counts (need ticketing/registration models). _Unblocks most later modules._
 - ⬜ **Team + RBAC (`PermissionsModule`)** — `EventAccessGuard`, `@RequireModule(...)`, `OwnerGuard`;
   `TeamMember`/`Invitation`/`AuditLog` models; invite/accept/decline. _Gate ownership early._
+  On landing: create an `ACTIVE`/`OWNER` `TeamMember` at event creation + backfill existing events,
+  then swap the `EventsService` `organizerId` checks for the guards.
 
-> After Phase 1, revisit the deferred `/me` items (now that `Event` exists).
+> After Phase 1, revisit the deferred `/me` and Events items (now that the models exist).
 
 ---
 

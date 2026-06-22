@@ -13,7 +13,7 @@ that contract**, not improvised.
   header redaction. Log via the injected `Logger`/`PinoLogger` from `nestjs-pino`, never `console`.
 - **Database (wired):** Prisma 6 + PostgreSQL. Global `PrismaModule`/`PrismaService`
   (`src/prisma/`); schema at `prisma/schema.prisma` grows **incrementally per feature slice**
-  (only `User` so far). `DATABASE_URL` is **composed** from `DB_*` parts via dotenv expansion
+  (`User`, `Event` so far). `DATABASE_URL` is **composed** from `DB_*` parts via dotenv expansion
   (`expandVariables: true`); edit the parts, not the URL. After schema changes run
   `yarn db:migrate` (dev) and `yarn db:generate`.
 - **Auth (wired):** email+password register/login → JWT **access + refresh** (rotation;
@@ -33,6 +33,13 @@ that contract**, not improvised.
   `@ApiStandardResponse`/`@ApiProblemResponse` and `@ApiBearerAuth` on protected routes.
   This generated spec reflects _implemented_ endpoints; the hand-written `docs/openapi.yaml`
   remains the full design contract.
+- **Events (wired):** the root resource. Organizer CRUD under `/events` (owner-scoped by
+  `organizerId`): create (unique slug), list-mine (cursor + status filter), `status-counts`, get,
+  update, `archive`/`restore`, delete; anonymous discovery under `/public/events` +
+  `/public/events/{slug}` (`@Public()`, published & non-archived only). Source in `src/events/`.
+  Ownership is a service-level `organizerId` check **for now** — it swaps to the RBAC guards
+  (`EventAccessGuard`/`OwnerGuard`) when the Team slice lands. Deferred: `GET /events/{id}/metrics`
+  and list relation-counts (need ticketing/registration models).
 - **Users / `/me` (wired):** the authenticated caller's own profile — `GET /me` (profile),
   `PATCH /me` (update name/email/image; email change checks uniqueness, resets `emailVerified`,
   and evicts the auth cache), `POST /me/change-password` (verifies current password). Source in
@@ -131,6 +138,7 @@ src/
   cache/                 # global Redis CacheModule (tix-ist namespace)
   auth/                  # register/login/refresh/logout, JWT strategies, guards, cached AuthUserService
   users/                 # /me: profile (get/update), change-password
+  events/                # organizer CRUD + status flow + public discovery (/public/events)
   common/                # @Public()/@CurrentUser() decorators + JwtAuthGuard
   openapi/               # setupOpenApi() — Scalar reference + /openapi.json
 prisma/                  # schema.prisma + migrations/ (create-only; apply with yarn db:deploy)

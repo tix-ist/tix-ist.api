@@ -24,6 +24,51 @@ model User {
   // SHA-256 digest of the current refresh token (single active session); null when logged out.
   hashedRefreshToken String?
 
+  // Events this user organizes. Restrict delete: a user owning events can't be removed.
+  events Event[] @relation("EventOrganizer")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+/// Root aggregate — almost every other entity hangs off an event and cascade-deletes
+/// with it. Relations to ticketing/team/audit models are added as those slices land.
+model Event {
+  id          String @id @default(cuid())
+  slug        String @unique // URL-friendly identifier
+  name        String
+  description String @db.Text
+
+  // Location & timing
+  locationType    String // 'in-person' | 'virtual' | 'hybrid'
+  locationAddress String? // physical address (in-person/hybrid)
+  locationUrl     String? // virtual URL (virtual/hybrid)
+  timezone        String   @default("UTC") // IANA timezone
+  startDate       DateTime // stored in UTC
+  endDate         DateTime // stored in UTC
+
+  // Status & visibility
+  status     String  @default("draft") // 'draft' | 'published' | 'archived'
+  isArchived Boolean @default(false) // soft-delete flag
+
+  // Ticket assignment configuration
+  assignmentCutoffType  String    @default("event_start") // 'event_start' | '1h_before' | '24h_before' | 'custom'
+  assignmentCutoffTime  DateTime? // used when type = 'custom'
+  maxTicketsPerPurchase Int       @default(10)
+
+  // Custom registration fields — array of CustomFieldDefinition objects
+  customFields Json?
+
+  // Organizer
+  organizerId String
+  organizer   User   @relation("EventOrganizer", fields: [organizerId], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([organizerId])
+  @@index([slug])
+  @@index([status, isArchived])
+  @@index([startDate])
+  @@index([organizerId, status])
 }
