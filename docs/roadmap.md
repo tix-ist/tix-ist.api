@@ -58,11 +58,18 @@ The purchase path. Registration is the concurrency-critical flow (row-lock, no o
   (TICKETS module) + list (event access) under `/events/{eventId}/ticket-types`; get/update/delete
   under `/ticket-types/{id}` (in-service module check); public on-sale list at
   `/public/events/{slug}/ticket-types`. First money model → global `BigInt`→string JSON
-  serialization. Inventory (`available = quantity − sold`) is derived with **sold = 0** until
-  Tickets/Registrations land (the quantity-floor / price-lock / delete guards already key off it).
-  Note: the MVP "price must be 0" rule from the source app is **not** enforced — non-zero prices are
-  allowed (payment is a no-op until the processor lands).
-- ⬜ **Registrations** — public self-registration (transactional row-lock), organizer add/list/cancel/export
+  serialization. Inventory (`available = quantity − sold`) is derived; `soldCount()` now sums
+  registration quantities (live as of the Registrations slice). Note: the MVP "price must be 0"
+  rule from the source app is **not** enforced — non-zero prices are allowed (payment is a no-op
+  until the processor lands; paid tiers just aren't registrable yet).
+- 🟡 **Registrations** — concurrency-safe public self-registration (`POST /public/registrations`):
+  the tier row is locked `FOR UPDATE` before counting, so capacity can't be oversold; organizer
+  list (ATTENDEES) at `/events/{eventId}/registrations`, get (event access) + cancel/hard-delete
+  (ATTENDEES) at `/registrations/{id}`. **Only free tiers are registrable** (paid blocked) until
+  the processor lands; `paymentStatus` defaults to `free`. This wires `TicketTypesService.soldCount()`
+  to real data — availability is now live. Deferred: organizer manual-add, CSV export, resend
+  confirmation, public buyer self-service (lookup / by-id), email-status webhook, and custom-field
+  responses (Attendee slice).
 - ⬜ **Tickets** — issued admission tickets, QR identity, optimistic-locked assignment (`expectedUpdatedAt`)
 - ⬜ **Attendees** — custom-field responses, email state, CSV import, list export
 

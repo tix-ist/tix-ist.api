@@ -13,7 +13,7 @@ that contract**, not improvised.
   header redaction. Log via the injected `Logger`/`PinoLogger` from `nestjs-pino`, never `console`.
 - **Database (wired):** Prisma 6 + PostgreSQL. Global `PrismaModule`/`PrismaService`
   (`src/prisma/`); schema at `prisma/schema.prisma` grows **incrementally per feature slice**
-  (`User`, `Event`, `TeamMember`, `Invitation`, `TicketType` so far). `DATABASE_URL` is **composed** from `DB_*` parts via dotenv expansion
+  (`User`, `Event`, `TeamMember`, `Invitation`, `TicketType`, `Registration` so far). `DATABASE_URL` is **composed** from `DB_*` parts via dotenv expansion
   (`expandVariables: true`); edit the parts, not the URL. After schema changes run
   `yarn db:migrate` (dev) and `yarn db:generate`.
 - **Auth (wired):** email+password register/login → JWT **access + refresh** (rotation;
@@ -56,9 +56,19 @@ that contract**, not improvised.
   (module check done in-service via `PermissionsService`); public on-sale list at
   `/public/events/{slug}/ticket-types`. This is the **first money model** — `price` is BigInt minor
   units (NGN), and `src/common/serialization/bigint.ts` (imported in `main.ts`) makes every BigInt
-  JSON-serialize as an integer **string**. Inventory (`available = quantity − sold`) is derived with
-  `sold = 0` until Tickets/Registrations exist; the quantity-floor/price-lock/delete guards key off
-  `TicketTypesService.soldCount()`. The source app's MVP "price must be 0" rule is **not** enforced.
+  JSON-serialize as an integer **string**. Inventory (`available = quantity − sold`) is derived;
+  `TicketTypesService.soldCount()` sums registration quantities (live since the Registrations slice).
+  The quantity-floor/price-lock/delete guards key off it. The source app's MVP "price must be 0" rule
+  is **not** enforced.
+- **Registrations (wired):** orders/purchases in `src/registrations/`. **Concurrency-safe** public
+  self-registration at `POST /public/registrations` (`@Public()`): inside a transaction the tier row
+  is locked `SELECT … FOR UPDATE` (raw) **before** counting, so concurrent registrations serialize and
+  capacity can't be oversold (Postgres forbids `FOR UPDATE` + `GROUP BY`, hence lock-then-count, not a
+  joined aggregate). Organizer list (`@RequireModule('ATTENDEES')`) at `/events/{eventId}/registrations`;
+  get (event access) + `POST /registrations/{id}/cancel` (ATTENDEES, **hard-delete** → frees the slot).
+  **Only free tiers of a published event are registrable** (paid blocked) until the processor lands;
+  `paymentStatus` defaults to `free` (payment fields dormant). Deferred: organizer manual-add, CSV
+  export, resend, public buyer self-service, email-status webhook, custom-field responses (Attendees).
 - **Users / `/me` (wired):** the authenticated caller's own profile — `GET /me` (profile),
   `PATCH /me` (update name/email/image; email change checks uniqueness, resets `emailVerified`,
   and evicts the auth cache), `POST /me/change-password` (verifies current password). Source in
@@ -159,6 +169,7 @@ src/
   users/                 # /me: profile (get/update), change-password
   events/                # organizer CRUD + status flow + public discovery (/public/events)
   ticket-types/          # purchasable tiers (BigInt price); event-scoped + flat + public
+  registrations/         # concurrency-safe self-registration (FOR UPDATE) + organizer list/cancel
   permissions/           # event RBAC: PermissionsService + EventAccess/Module/Owner guards
   team/                  # team membership + invitation lifecycle (invite/accept/decline/manage)
   common/                # @Public()/@CurrentUser() decorators + JwtAuthGuard

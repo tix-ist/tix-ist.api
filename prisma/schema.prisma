@@ -32,6 +32,9 @@ model User {
   invitedMembers  TeamMember[] @relation("TeamMemberInviter")
   invitationsSent Invitation[] @relation("InvitationSender")
 
+  // Registrations made while authenticated (optional link)
+  registrations Registration[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -69,7 +72,8 @@ model Event {
   organizer   User   @relation("EventOrganizer", fields: [organizerId], references: [id], onDelete: Restrict)
 
   // Ticketing
-  ticketTypes TicketType[]
+  ticketTypes   TicketType[]
+  registrations Registration[]
 
   // Team collaboration
   teamMembers TeamMember[]
@@ -104,11 +108,50 @@ model TicketType {
   saleStart DateTime? // null = no start restriction
   saleEnd   DateTime? // null = no end restriction
 
+  registrations Registration[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([eventId])
   @@index([eventId, saleStart, saleEnd])
+}
+
+/// A purchase/order by a buyer; one registration covers `quantity` admissions. Inventory
+/// is the SUM of a tier's registration quantities (cancelling hard-deletes the row, freeing
+/// the slot). Self-registration is concurrency-safe: the tier row is locked `FOR UPDATE`
+/// before counting, so capacity can't be oversold. Payment fields are dormant until the
+/// processor lands; only free tiers are registrable for now.
+model Registration {
+  id String @id @default(cuid())
+
+  eventId String
+  event   Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  ticketTypeId String
+  ticketType   TicketType @relation(fields: [ticketTypeId], references: [id], onDelete: Restrict)
+
+  email String // buyer email
+  name  String // buyer name
+
+  userId String? // optional link if registered while authenticated
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  quantity Int @default(1)
+
+  paymentStatus    String  @default("free") // free | pending | paid | failed | refunded
+  paymentIntentId  String? // dormant until a processor lands
+  paymentProcessor String? // 'stripe' | 'paystack' | null
+
+  registeredAt DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([eventId])
+  @@index([ticketTypeId])
+  @@index([email])
+  @@index([userId])
+  @@index([eventId, ticketTypeId])
+  @@index([registeredAt])
 }
 
 enum TeamRole {

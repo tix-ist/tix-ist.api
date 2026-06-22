@@ -48,7 +48,7 @@ export class TicketTypesService {
       where: { eventId },
       orderBy: { createdAt: 'asc' },
     });
-    return tiers.map((t) => this.withAvailability(t));
+    return Promise.all(tiers.map((t) => this.withAvailability(t)));
   }
 
   /** A single tier with availability; caller must be a member of its event. */
@@ -132,24 +132,29 @@ export class TicketTypesService {
       where: { eventId: event.id },
       orderBy: { createdAt: 'asc' },
     });
-    return tiers
-      .map((t) => this.withAvailability(t))
-      .filter(
-        (t) =>
-          t.available > 0 &&
-          (!t.saleStart || t.saleStart <= now) &&
-          (!t.saleEnd || t.saleEnd >= now),
-      );
+    const withAvailability = await Promise.all(
+      tiers.map((t) => this.withAvailability(t)),
+    );
+    return withAvailability.filter(
+      (t) =>
+        t.available > 0 &&
+        (!t.saleStart || t.saleStart <= now) &&
+        (!t.saleEnd || t.saleEnd >= now),
+    );
   }
 
   // --- helpers ---
 
   /**
-   * Issued/registration count for a tier. Hardwired to 0 until the Tickets and
-   * Registrations models exist; the inventory/price/delete guards already key off it.
+   * Sold count for a tier = SUM of its registration quantities (cancelling a
+   * registration hard-deletes the row, freeing the slot).
    */
-  private soldCount(_tierId: string): Promise<number> {
-    return Promise.resolve(0);
+  private async soldCount(tierId: string): Promise<number> {
+    const { _sum } = await this.prisma.registration.aggregate({
+      where: { ticketTypeId: tierId },
+      _sum: { quantity: true },
+    });
+    return _sum.quantity ?? 0;
   }
 
   private async requireTier(id: string): Promise<TicketType> {
@@ -158,8 +163,10 @@ export class TicketTypesService {
     return tier;
   }
 
-  private withAvailability(tier: TicketType): TicketTypeWithAvailability {
-    const sold = 0; // see soldCount(): derived once Tickets/Registrations land
+  private async withAvailability(
+    tier: TicketType,
+  ): Promise<TicketTypeWithAvailability> {
+    const sold = await this.soldCount(tier.id);
     return { ...tier, sold, available: tier.quantity - sold };
   }
 

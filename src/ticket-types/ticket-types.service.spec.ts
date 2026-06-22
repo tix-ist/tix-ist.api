@@ -12,6 +12,10 @@ function setup() {
       delete: jest.fn(),
     },
     event: { findUnique: jest.fn() },
+    // soldCount() aggregates registration quantities; default to none sold.
+    registration: {
+      aggregate: jest.fn(() => Promise.resolve({ _sum: { quantity: 0 } })),
+    },
   } as any;
   const permissions = {
     checkEventAccess: jest.fn(),

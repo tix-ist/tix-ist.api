@@ -14,6 +14,7 @@ import { UsersModule } from './users/users.module';
 import { EventsModule } from './events/events.module';
 import { TeamModule } from './team/team.module';
 import { TicketTypesModule } from './ticket-types/ticket-types.module';
+import { RegistrationsModule } from './registrations/registrations.module';
 import { CommonModule } from './common/common.module';
 
 @Module({
@@ -53,6 +54,7 @@ import { CommonModule } from './common/common.module';
     EventsModule,
     TeamModule,
     TicketTypesModule,
+    RegistrationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
