@@ -43,6 +43,8 @@ that contract**, not improvised.
 - **Source of truth for endpoints:** [`docs/openapi.yaml`](./docs/openapi.yaml) — 105 REST
   operations across 84 paths. Also see [`docs/data-model.md`](./docs/data-model.md) and
   [`docs/architecture.md`](./docs/architecture.md) (module decomposition, RBAC & request flows).
+- **Build order & status:** [`docs/roadmap.md`](./docs/roadmap.md) — the phased slice plan; keep
+  it current (flip the checkbox + add a one-line note) whenever a slice lands or is deferred.
 - **Reference app:** `../tixist-web-trpc` (the Next.js/tRPC original). Read it for behavior to
   port, but **do not modify it** — it's a separate repo.
 
