@@ -68,6 +68,9 @@ model Event {
   organizerId String
   organizer   User   @relation("EventOrganizer", fields: [organizerId], references: [id], onDelete: Restrict)
 
+  // Ticketing
+  ticketTypes TicketType[]
+
   // Team collaboration
   teamMembers TeamMember[]
   invitations Invitation[]
@@ -80,6 +83,32 @@ model Event {
   @@index([status, isArchived])
   @@index([startDate])
   @@index([organizerId, status])
+}
+
+/// A purchasable ticket tier within an event. Price is stored in BigInt **minor
+/// units** (e.g. kobo for NGN) to avoid float rounding; serialize it as an integer
+/// string over the wire. Inventory is derived (`available = quantity − issued`), not
+/// stored — the issued/registration count wires in when those models land.
+model TicketType {
+  id      String @id @default(cuid())
+  eventId String
+  event   Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  name        String
+  description String @db.Text
+
+  price    BigInt @default(0) // minor units; default currency NGN (kobo)
+  currency String @default("NGN") // ISO 4217
+
+  quantity  Int // total inventory
+  saleStart DateTime? // null = no start restriction
+  saleEnd   DateTime? // null = no end restriction
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([eventId])
+  @@index([eventId, saleStart, saleEnd])
 }
 
 enum TeamRole {

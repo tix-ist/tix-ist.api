@@ -54,7 +54,14 @@ Establishes the user surface, the core `Event` resource, and the RBAC that gates
 
 The purchase path. Registration is the concurrency-critical flow (row-lock, no overselling).
 
-- ⬜ **TicketTypes** — tiers: name, price (BigInt minor units, NGN), quantity, sale window
+- 🟡 **TicketTypes** — tiers (name, price BigInt minor units/NGN, quantity, sale window): create
+  (TICKETS module) + list (event access) under `/events/{eventId}/ticket-types`; get/update/delete
+  under `/ticket-types/{id}` (in-service module check); public on-sale list at
+  `/public/events/{slug}/ticket-types`. First money model → global `BigInt`→string JSON
+  serialization. Inventory (`available = quantity − sold`) is derived with **sold = 0** until
+  Tickets/Registrations land (the quantity-floor / price-lock / delete guards already key off it).
+  Note: the MVP "price must be 0" rule from the source app is **not** enforced — non-zero prices are
+  allowed (payment is a no-op until the processor lands).
 - ⬜ **Registrations** — public self-registration (transactional row-lock), organizer add/list/cancel/export
 - ⬜ **Tickets** — issued admission tickets, QR identity, optimistic-locked assignment (`expectedUpdatedAt`)
 - ⬜ **Attendees** — custom-field responses, email state, CSV import, list export

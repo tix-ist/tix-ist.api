@@ -13,6 +13,7 @@ import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { EventsModule } from './events/events.module';
 import { TeamModule } from './team/team.module';
+import { TicketTypesModule } from './ticket-types/ticket-types.module';
 import { CommonModule } from './common/common.module';
 
 @Module({
@@ -51,6 +52,7 @@ import { CommonModule } from './common/common.module';
     UsersModule,
     EventsModule,
     TeamModule,
+    TicketTypesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

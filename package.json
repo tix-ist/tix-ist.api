@@ -1,10 +1,9 @@
 {
-  "name": "tix-ist.api",
+  "name": "api.tixist.co",
   "version": "0.0.0-development",
   "description": "The API that powers the all-in-one event management suite",
   "author": "Oluwatobi Balogun <tobi.balo@gmail.com> (https://tobisupreme.com)",
   "private": true,
-  "license": "UNLICENSED",
   "scripts": {
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",

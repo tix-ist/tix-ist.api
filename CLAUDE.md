@@ -13,7 +13,7 @@ that contract**, not improvised.
   header redaction. Log via the injected `Logger`/`PinoLogger` from `nestjs-pino`, never `console`.
 - **Database (wired):** Prisma 6 + PostgreSQL. Global `PrismaModule`/`PrismaService`
   (`src/prisma/`); schema at `prisma/schema.prisma` grows **incrementally per feature slice**
-  (`User`, `Event`, `TeamMember`, `Invitation` so far). `DATABASE_URL` is **composed** from `DB_*` parts via dotenv expansion
+  (`User`, `Event`, `TeamMember`, `Invitation`, `TicketType` so far). `DATABASE_URL` is **composed** from `DB_*` parts via dotenv expansion
   (`expandVariables: true`); edit the parts, not the URL. After schema changes run
   `yarn db:migrate` (dev) and `yarn db:generate`.
 - **Auth (wired):** email+password register/login → JWT **access + refresh** (rotation;
@@ -51,6 +51,14 @@ that contract**, not improvised.
   `/me/memberships`, update permissions, remove, cancel. The tenant boundary is the **event** (no org
   layer); a user can own some events and collaborate on others. Deferred: invite emails + audit log
   (Phase 5), per-action rate limits, resend, declined/expired lists.
+- **TicketTypes (wired):** purchasable tiers in `src/ticket-types/`. Create (`@RequireModule('TICKETS')`)
+  and list (member) under `/events/{eventId}/ticket-types`; get/update/delete under `/ticket-types/{id}`
+  (module check done in-service via `PermissionsService`); public on-sale list at
+  `/public/events/{slug}/ticket-types`. This is the **first money model** — `price` is BigInt minor
+  units (NGN), and `src/common/serialization/bigint.ts` (imported in `main.ts`) makes every BigInt
+  JSON-serialize as an integer **string**. Inventory (`available = quantity − sold`) is derived with
+  `sold = 0` until Tickets/Registrations exist; the quantity-floor/price-lock/delete guards key off
+  `TicketTypesService.soldCount()`. The source app's MVP "price must be 0" rule is **not** enforced.
 - **Users / `/me` (wired):** the authenticated caller's own profile — `GET /me` (profile),
   `PATCH /me` (update name/email/image; email change checks uniqueness, resets `emailVerified`,
   and evicts the auth cache), `POST /me/change-password` (verifies current password). Source in
@@ -150,6 +158,7 @@ src/
   auth/                  # register/login/refresh/logout, JWT strategies, guards, cached AuthUserService
   users/                 # /me: profile (get/update), change-password
   events/                # organizer CRUD + status flow + public discovery (/public/events)
+  ticket-types/          # purchasable tiers (BigInt price); event-scoped + flat + public
   permissions/           # event RBAC: PermissionsService + EventAccess/Module/Owner guards
   team/                  # team membership + invitation lifecycle (invite/accept/decline/manage)
   common/                # @Public()/@CurrentUser() decorators + JwtAuthGuard
