@@ -27,6 +27,11 @@ model User {
   // Events this user organizes. Restrict delete: a user owning events can't be removed.
   events Event[] @relation("EventOrganizer")
 
+  // Team collaboration
+  teamMemberships TeamMember[] @relation("TeamMemberUser")
+  invitedMembers  TeamMember[] @relation("TeamMemberInviter")
+  invitationsSent Invitation[] @relation("InvitationSender")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -63,6 +68,10 @@ model Event {
   organizerId String
   organizer   User   @relation("EventOrganizer", fields: [organizerId], references: [id], onDelete: Restrict)
 
+  // Team collaboration
+  teamMembers TeamMember[]
+  invitations Invitation[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -71,4 +80,90 @@ model Event {
   @@index([status, isArchived])
   @@index([startDate])
   @@index([organizerId, status])
+}
+
+enum TeamRole {
+  OWNER
+  COLLABORATOR
+}
+
+enum TeamMemberStatus {
+  PENDING
+  ACTIVE
+  REMOVED
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  EXPIRED
+  CANCELLED
+}
+
+/// A user's membership in one event's team. The source of truth for "can X act on
+/// event Z": owners bypass module checks; collaborators are gated to `modulePermissions`.
+/// `userId` is null while an invite is PENDING (keyed by email), backfilled on accept.
+model TeamMember {
+  id String @id @default(cuid())
+
+  eventId String
+  event   Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  userId String? // null until the invitation is accepted
+  user   User?   @relation("TeamMemberUser", fields: [userId], references: [id], onDelete: SetNull)
+
+  email String // always present (target of the invite)
+
+  role   TeamRole         @default(COLLABORATOR)
+  status TeamMemberStatus @default(PENDING)
+
+  modulePermissions String[] @default([]) // e.g. ["CFP","ATTENDEES"]; ignored for OWNER
+
+  invitedById String
+  invitedBy   User     @relation("TeamMemberInviter", fields: [invitedById], references: [id], onDelete: Restrict)
+  invitedAt   DateTime @default(now())
+
+  lastAccessedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([eventId, email])
+  @@unique([eventId, userId])
+  @@index([eventId])
+  @@index([userId])
+  @@index([email])
+  @@index([status])
+  @@index([eventId, status])
+  @@index([eventId, userId])
+  @@index([eventId, role])
+}
+
+/// A pending team invite carrying a secure token (7-day expiry). Sending an invite
+/// creates this plus a PENDING TeamMember in one transaction; accept/decline flips both.
+model Invitation {
+  id String @id @default(cuid())
+
+  eventId String
+  event   Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  email             String
+  token             String   @unique // randomBytes(32) base64url, 43 chars
+  modulePermissions String[] @default([])
+
+  status    InvitationStatus @default(PENDING)
+  expiresAt DateTime // now() + 7 days
+
+  sentById String
+  sentBy   User     @relation("InvitationSender", fields: [sentById], references: [id], onDelete: Restrict)
+  sentAt   DateTime @default(now())
+
+  respondedAt DateTime?
+
+  @@index([token])
+  @@index([eventId])
+  @@index([email])
+  @@index([status, expiresAt])
+  @@index([eventId, status])
 }

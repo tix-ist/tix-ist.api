@@ -6,6 +6,8 @@ import { ProblemDto } from '../dto/problem.dto';
 interface StandardResponseOptions {
   status?: number;
   description?: string;
+  /** Document the payload as an array of the model (`{ data: model[] }`). */
+  isArray?: boolean;
 }
 
 /** Documents a `{ data: <model> }` success response (the standard envelope). */
@@ -13,6 +15,10 @@ export function ApiStandardResponse<TModel extends Type>(
   model: TModel,
   options: StandardResponseOptions = {},
 ) {
+  const ref = getSchemaPath(model);
+  const data = options.isArray
+    ? { type: 'array' as const, items: { $ref: ref } }
+    : { $ref: ref };
   return applyDecorators(
     ApiExtraModels(model),
     ApiResponse({
@@ -20,7 +26,7 @@ export function ApiStandardResponse<TModel extends Type>(
       description: options.description,
       schema: {
         type: 'object',
-        properties: { data: { $ref: getSchemaPath(model) } },
+        properties: { data },
       },
     }),
   );

@@ -1,25 +1,27 @@
 import { describe, expect, it, jest, beforeEach } from '@jest/globals';
-import {
-  ConflictException,
-  ForbiddenException,
-  NotFoundException,
-} from '@nestjs/common';
+import { ConflictException, NotFoundException } from '@nestjs/common';
 import { EventsService } from './events.service';
 
 function setup() {
+  const tx = {
+    event: { create: jest.fn() },
+    teamMember: { create: jest.fn() },
+  };
   const prisma = {
     event: {
       findUnique: jest.fn(),
       findMany: jest.fn(),
-      create: jest.fn(),
       update: jest.fn(),
       delete: jest.fn(),
       count: jest.fn(),
     },
+    $transaction: jest.fn((cb: any) => cb(tx)),
   } as any;
   const service = new EventsService(prisma);
-  return { service, prisma };
+  return { service, prisma, tx };
 }
+
+const owner = { id: 'u1', email: 'ada@example.com', name: 'Ada' };
 
 const baseCreate = {
   name: 'Conf 2026',
@@ -39,17 +41,29 @@ describe('EventsService', () => {
   });
 
   describe('create', () => {
-    it('creates the event owned by the caller', async () => {
+    it('creates the event and an ACTIVE OWNER membership in one transaction', async () => {
       c.prisma.event.findUnique.mockResolvedValue(null);
-      c.prisma.event.create.mockResolvedValue({ id: 'e1', ...baseCreate });
+      c.tx.event.create.mockResolvedValue({ id: 'e1', ...baseCreate });
 
-      const event = await c.service.create('u1', baseCreate);
+      const event = await c.service.create(owner, baseCreate);
 
-      expect(c.prisma.event.create).toHaveBeenCalledWith(
+      expect(c.tx.event.create).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({
             slug: 'conf-2026',
             organizerId: 'u1',
+          }),
+        }),
+      );
+      expect(c.tx.teamMember.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            eventId: 'e1',
+            userId: 'u1',
+            email: 'ada@example.com',
+            role: 'OWNER',
+            status: 'ACTIVE',
+            invitedById: 'u1',
           }),
         }),
       );
@@ -58,10 +72,10 @@ describe('EventsService', () => {
 
     it('rejects a slug already in use', async () => {
       c.prisma.event.findUnique.mockResolvedValue({ id: 'other' });
-      await expect(c.service.create('u1', baseCreate)).rejects.toBeInstanceOf(
+      await expect(c.service.create(owner, baseCreate)).rejects.toBeInstanceOf(
         ConflictException,
       );
-      expect(c.prisma.event.create).not.toHaveBeenCalled();
+      expect(c.tx.event.create).not.toHaveBeenCalled();
     });
   });
 
@@ -120,46 +134,29 @@ describe('EventsService', () => {
     });
   });
 
-  describe('getOwned', () => {
-    it('returns the event when owned by the caller', async () => {
-      c.prisma.event.findUnique.mockResolvedValue({
-        id: 'e1',
-        organizerId: 'u1',
-      });
-      await expect(c.service.getOwned('u1', 'e1')).resolves.toEqual({
-        id: 'e1',
-        organizerId: 'u1',
-      });
+  describe('findById', () => {
+    it('returns the event', async () => {
+      c.prisma.event.findUnique.mockResolvedValue({ id: 'e1' });
+      await expect(c.service.findById('e1')).resolves.toEqual({ id: 'e1' });
     });
 
     it('throws NotFound when the event is missing', async () => {
       c.prisma.event.findUnique.mockResolvedValue(null);
-      await expect(c.service.getOwned('u1', 'missing')).rejects.toBeInstanceOf(
+      await expect(c.service.findById('missing')).rejects.toBeInstanceOf(
         NotFoundException,
-      );
-    });
-
-    it('throws Forbidden when owned by someone else', async () => {
-      c.prisma.event.findUnique.mockResolvedValue({
-        id: 'e1',
-        organizerId: 'other',
-      });
-      await expect(c.service.getOwned('u1', 'e1')).rejects.toBeInstanceOf(
-        ForbiddenException,
       );
     });
   });
 
   describe('update', () => {
-    it('updates an owned event', async () => {
+    it('updates the event', async () => {
       c.prisma.event.findUnique.mockResolvedValue({
         id: 'e1',
-        organizerId: 'u1',
         slug: 'conf-2026',
       });
       c.prisma.event.update.mockResolvedValue({ id: 'e1', name: 'Renamed' });
 
-      await c.service.update('u1', 'e1', { name: 'Renamed' });
+      await c.service.update('e1', { name: 'Renamed' });
 
       expect(c.prisma.event.update).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -171,11 +168,11 @@ describe('EventsService', () => {
 
     it('rejects a slug taken by another event', async () => {
       c.prisma.event.findUnique
-        .mockResolvedValueOnce({ id: 'e1', organizerId: 'u1', slug: 'old' }) // getOwned
+        .mockResolvedValueOnce({ id: 'e1', slug: 'old' }) // findById
         .mockResolvedValueOnce({ id: 'e2' }); // slug check
 
       await expect(
-        c.service.update('u1', 'e1', { slug: 'taken' }),
+        c.service.update('e1', { slug: 'taken' }),
       ).rejects.toBeInstanceOf(ConflictException);
       expect(c.prisma.event.update).not.toHaveBeenCalled();
     });
@@ -183,12 +180,8 @@ describe('EventsService', () => {
 
   describe('archive / restore', () => {
     it('archive sets status=archived and isArchived=true', async () => {
-      c.prisma.event.findUnique.mockResolvedValue({
-        id: 'e1',
-        organizerId: 'u1',
-      });
       c.prisma.event.update.mockResolvedValue({ id: 'e1' });
-      await c.service.archive('u1', 'e1');
+      await c.service.archive('e1');
       expect(c.prisma.event.update).toHaveBeenCalledWith(
         expect.objectContaining({
           data: { status: 'archived', isArchived: true },
@@ -197,12 +190,8 @@ describe('EventsService', () => {
     });
 
     it('restore sets status=draft and isArchived=false', async () => {
-      c.prisma.event.findUnique.mockResolvedValue({
-        id: 'e1',
-        organizerId: 'u1',
-      });
       c.prisma.event.update.mockResolvedValue({ id: 'e1' });
-      await c.service.restore('u1', 'e1');
+      await c.service.restore('e1');
       expect(c.prisma.event.update).toHaveBeenCalledWith(
         expect.objectContaining({
           data: { status: 'draft', isArchived: false },
@@ -212,26 +201,11 @@ describe('EventsService', () => {
   });
 
   describe('remove', () => {
-    it('deletes an owned event', async () => {
-      c.prisma.event.findUnique.mockResolvedValue({
-        id: 'e1',
-        organizerId: 'u1',
-      });
-      await c.service.remove('u1', 'e1');
+    it('deletes the event', async () => {
+      await c.service.remove('e1');
       expect(c.prisma.event.delete).toHaveBeenCalledWith({
         where: { id: 'e1' },
       });
-    });
-
-    it('does not delete an event owned by someone else', async () => {
-      c.prisma.event.findUnique.mockResolvedValue({
-        id: 'e1',
-        organizerId: 'other',
-      });
-      await expect(c.service.remove('u1', 'e1')).rejects.toBeInstanceOf(
-        ForbiddenException,
-      );
-      expect(c.prisma.event.delete).not.toHaveBeenCalled();
     });
   });
 

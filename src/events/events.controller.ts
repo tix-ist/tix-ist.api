@@ -8,6 +8,7 @@ import {
   Patch,
   Post,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiNoContentResponse, ApiTags } from '@nestjs/swagger';
 import { Event } from '@prisma/client';
@@ -19,6 +20,7 @@ import {
 } from '../common/decorators/api-standard-response.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Paginated } from '../common/pagination/paginated';
+import { EventAccessGuard, OwnerGuard } from '../permissions/event-rbac.guards';
 import { ApiTag } from '../openapi/api-tags';
 import { CreateEventDto } from './dto/create-event.dto';
 import {
@@ -53,7 +55,7 @@ export class EventsController {
     @CurrentUser() user: AuthUser,
     @Body() dto: CreateEventDto,
   ): Promise<Event> {
-    return this.events.create(user.id, dto);
+    return this.events.create(user, dto);
   }
 
   /**
@@ -87,78 +89,69 @@ export class EventsController {
   }
 
   /**
-   * Get one of the caller's events by id.
+   * Get an event by id.
+   * @remarks Any active team member of the event (owner or collaborator) may read it.
    */
   @Get(':id')
+  @UseGuards(EventAccessGuard)
   @ApiStandardResponse(EventResponseDto, { description: 'The event' })
-  @ApiProblemResponse(403, 'Not the owner')
+  @ApiProblemResponse(403, 'Not a member of this event')
   @ApiProblemResponse(404, 'Event not found')
-  getById(
-    @CurrentUser() user: AuthUser,
-    @Param('id') id: string,
-  ): Promise<Event> {
-    return this.events.getOwned(user.id, id);
+  getById(@Param('id') id: string): Promise<Event> {
+    return this.events.findById(id);
   }
 
   /**
    * Update an event.
-   * @remarks Patch any subset of fields. Changing the slug re-checks uniqueness.
+   * @remarks Owner only. Patch any subset of fields; changing the slug re-checks uniqueness.
    */
   @Patch(':id')
+  @UseGuards(OwnerGuard)
   @ApiStandardResponse(EventResponseDto, { description: 'The updated event' })
   @ApiProblemResponse(409, 'Slug already in use')
   @ApiProblemResponse(403, 'Not the owner')
   @ApiProblemResponse(404, 'Event not found')
-  update(
-    @CurrentUser() user: AuthUser,
-    @Param('id') id: string,
-    @Body() dto: UpdateEventDto,
-  ): Promise<Event> {
-    return this.events.update(user.id, id, dto);
+  update(@Param('id') id: string, @Body() dto: UpdateEventDto): Promise<Event> {
+    return this.events.update(id, dto);
   }
 
   /**
    * Soft-archive an event.
-   * @remarks Hides it from the public surface; reversible via restore.
+   * @remarks Owner only. Hides it from the public surface; reversible via restore.
    */
   @Post(':id/archive')
+  @UseGuards(OwnerGuard)
   @ApiStandardResponse(EventResponseDto, { description: 'The archived event' })
   @ApiProblemResponse(403, 'Not the owner')
   @ApiProblemResponse(404, 'Event not found')
-  archive(
-    @CurrentUser() user: AuthUser,
-    @Param('id') id: string,
-  ): Promise<Event> {
-    return this.events.archive(user.id, id);
+  archive(@Param('id') id: string): Promise<Event> {
+    return this.events.archive(id);
   }
 
   /**
    * Restore an archived event back to draft.
+   * @remarks Owner only.
    */
   @Post(':id/restore')
+  @UseGuards(OwnerGuard)
   @ApiStandardResponse(EventResponseDto, { description: 'The restored event' })
   @ApiProblemResponse(403, 'Not the owner')
   @ApiProblemResponse(404, 'Event not found')
-  restore(
-    @CurrentUser() user: AuthUser,
-    @Param('id') id: string,
-  ): Promise<Event> {
-    return this.events.restore(user.id, id);
+  restore(@Param('id') id: string): Promise<Event> {
+    return this.events.restore(id);
   }
 
   /**
    * Permanently delete an event.
-   * @remarks Cascades to all the event's child records. Cannot be undone.
+   * @remarks Owner only. Cascades to all the event's child records. Cannot be undone.
    */
   @Delete(':id')
+  @UseGuards(OwnerGuard)
   @HttpCode(204)
   @ApiNoContentResponse({ description: 'Deleted' })
   @ApiProblemResponse(403, 'Not the owner')
   @ApiProblemResponse(404, 'Event not found')
-  remove(
-    @CurrentUser() user: AuthUser,
-    @Param('id') id: string,
-  ): Promise<void> {
-    return this.events.remove(user.id, id);
+  remove(@Param('id') id: string): Promise<void> {
+    return this.events.remove(id);
   }
 }

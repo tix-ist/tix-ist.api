@@ -1,10 +1,10 @@
 import {
   ConflictException,
-  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { Event, Prisma } from '@prisma/client';
+import type { AuthUser } from '../auth/auth.types';
 import { Paginated } from '../common/pagination/paginated';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateEventDto } from './dto/create-event.dto';
@@ -25,16 +25,33 @@ interface ListPublishedParams {
 export class EventsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  /** Create an event owned by the caller. Slug must be globally unique. */
-  async create(userId: string, dto: CreateEventDto): Promise<Event> {
+  /**
+   * Create an event owned by the caller. Slug must be globally unique. The event
+   * and the owner's `ACTIVE`/`OWNER` `TeamMember` are written in one transaction so
+   * the RBAC guards recognize the creator immediately.
+   */
+  async create(owner: AuthUser, dto: CreateEventDto): Promise<Event> {
     await this.assertSlugFree(dto.slug);
     const { customFields, ...rest } = dto;
-    return this.prisma.event.create({
-      data: {
-        ...rest,
-        customFields: this.toJson(customFields),
-        organizerId: userId,
-      },
+    return this.prisma.$transaction(async (tx) => {
+      const event = await tx.event.create({
+        data: {
+          ...rest,
+          customFields: this.toJson(customFields),
+          organizerId: owner.id,
+        },
+      });
+      await tx.teamMember.create({
+        data: {
+          eventId: event.id,
+          userId: owner.id,
+          email: owner.email ?? '',
+          role: 'OWNER',
+          status: 'ACTIVE',
+          invitedById: owner.id,
+        },
+      });
+      return event;
     });
   }
 
@@ -71,22 +88,18 @@ export class EventsService {
     return { draft, published, archived };
   }
 
-  /** Load an event the caller owns, or throw (404 missing / 403 not owner). */
-  async getOwned(userId: string, id: string): Promise<Event> {
+  /**
+   * Load an event by id, or 404. Authorization (membership/ownership) is enforced
+   * by the route's RBAC guard before this runs.
+   */
+  async findById(id: string): Promise<Event> {
     const event = await this.prisma.event.findUnique({ where: { id } });
     if (!event) throw new NotFoundException('Event not found');
-    if (event.organizerId !== userId) {
-      throw new ForbiddenException('You do not have access to this event');
-    }
     return event;
   }
 
-  async update(
-    userId: string,
-    id: string,
-    dto: UpdateEventDto,
-  ): Promise<Event> {
-    const current = await this.getOwned(userId, id);
+  async update(id: string, dto: UpdateEventDto): Promise<Event> {
+    const current = await this.findById(id);
     if (dto.slug && dto.slug !== current.slug) {
       await this.assertSlugFree(dto.slug);
     }
@@ -103,8 +116,7 @@ export class EventsService {
   }
 
   /** Soft-archive (hides from the public surface; reversible via restore). */
-  async archive(userId: string, id: string): Promise<Event> {
-    await this.getOwned(userId, id);
+  archive(id: string): Promise<Event> {
     return this.prisma.event.update({
       where: { id },
       data: { status: 'archived', isArchived: true },
@@ -112,17 +124,15 @@ export class EventsService {
   }
 
   /** Restore an archived event back to draft for review. */
-  async restore(userId: string, id: string): Promise<Event> {
-    await this.getOwned(userId, id);
+  restore(id: string): Promise<Event> {
     return this.prisma.event.update({
       where: { id },
       data: { status: 'draft', isArchived: false },
     });
   }
 
-  /** Permanently delete an owned event (cascades to its children). */
-  async remove(userId: string, id: string): Promise<void> {
-    await this.getOwned(userId, id);
+  /** Permanently delete an event (cascades to its children). */
+  async remove(id: string): Promise<void> {
     await this.prisma.event.delete({ where: { id } });
   }
 
