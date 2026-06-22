@@ -22,6 +22,6 @@ import { JwtStrategy } from './strategies/jwt.strategy';
     // Protect every route by default; @Public() opts out.
     { provide: APP_GUARD, useClass: JwtAuthGuard },
   ],
-  exports: [AuthUserService],
+  exports: [AuthUserService, HashingService],
 })
 export class AuthModule {}

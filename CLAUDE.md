@@ -33,6 +33,11 @@ that contract**, not improvised.
   `@ApiStandardResponse`/`@ApiProblemResponse` and `@ApiBearerAuth` on protected routes.
   This generated spec reflects _implemented_ endpoints; the hand-written `docs/openapi.yaml`
   remains the full design contract.
+- **Users / `/me` (wired):** the authenticated caller's own profile — `GET /me` (profile),
+  `PATCH /me` (update name/email/image; email change checks uniqueness, resets `emailVerified`,
+  and evicts the auth cache), `POST /me/change-password` (verifies current password). Source in
+  `src/users/`. `DELETE /me` and `GET /me/events-summary` (and the profile event/attendee counts)
+  are **deferred** until the Events/Registration models land — they depend on event ownership data.
 - **Status:** early build. Scaffold + design docs are in place; remaining feature modules are
   being implemented. Treat anything marked _(planned)_ in the docs as not-yet-wired.
 - **Source of truth for endpoints:** [`docs/openapi.yaml`](./docs/openapi.yaml) — 105 REST
@@ -123,6 +128,7 @@ src/
   prisma/                # global PrismaModule + PrismaService
   cache/                 # global Redis CacheModule (tix-ist namespace)
   auth/                  # register/login/refresh/logout, JWT strategies, guards, cached AuthUserService
+  users/                 # /me: profile (get/update), change-password
   common/                # @Public()/@CurrentUser() decorators + JwtAuthGuard
   openapi/               # setupOpenApi() — Scalar reference + /openapi.json
 prisma/                  # schema.prisma + migrations/ (create-only; apply with yarn db:deploy)
