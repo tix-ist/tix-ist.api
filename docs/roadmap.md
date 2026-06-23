@@ -102,8 +102,9 @@ The purchase path. Registration is the concurrency-critical flow (row-lock, no o
   `POST` checks a ticket in by number **or** QR, scoped to the event, **idempotent** (already-checked-in
   is a no-op returning `alreadyCheckedIn`), stamping `checkedInBy`; `GET .../ticket/{ticketNumber}`
   for the pre-check-in confirmation; `GET .../metrics` (total / checked-in / remaining / % + 10 most
-  recent). No new model — uses the `Ticket` check-in columns. Completes the ticket lifecycle
-  (issue → assign → check in). Deferred: the `/check-in/attendees` list (the Attendees list covers it).
+  recent); `GET .../attendees` is the door-staff **roster search** — match by ticket number, attendee
+  **email** or name (case-insensitive), optional checked-in filter, cursor-paginated. No new model —
+  uses the `Ticket` check-in columns. Completes the ticket lifecycle (issue → assign → check in).
 - ⬜ **Uploads** — file uploads via pluggable `StorageAdapter`
 - ⬜ **Webhooks** — inbound provider webhooks (e.g. `POST /webhooks/email`), signature-verified
 - ⬜ **Jobs** — scheduler-triggered maintenance (close expired CFPs, send campaigns, expire invitations)

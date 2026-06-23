@@ -5,16 +5,19 @@ import {
   HttpCode,
   Param,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import type { Ticket } from '@prisma/client';
 import type { AuthUser } from '../auth/auth.types';
 import {
+  ApiPaginatedResponse,
   ApiProblemResponse,
   ApiStandardResponse,
 } from '../common/decorators/api-standard-response.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { Paginated } from '../common/pagination/paginated';
 import { ApiTag } from '../openapi/api-tags';
 import { ModuleGuard } from '../permissions/event-rbac.guards';
 import { Module } from '../permissions/permissions.types';
@@ -24,12 +27,15 @@ import {
   CheckInResultDto,
 } from './dto/check-in-response.dto';
 import { CheckInDto } from './dto/check-in.dto';
+import { CheckInSearchQuery } from './dto/check-in-search.query';
 import { TicketResponseDto } from '../tickets/dto/ticket-response.dto';
 import {
   CheckInMetrics,
   CheckInResult,
   CheckInService,
 } from './check-in.service';
+
+const DEFAULT_LIMIT = 20;
 
 /** On-site check-in for an event (`/events/{eventId}/check-in`); all CHECKIN-gated. */
 @ApiTags(ApiTag.CheckIn)
@@ -57,6 +63,26 @@ export class EventCheckInController {
     @Body() dto: CheckInDto,
   ): Promise<CheckInResult> {
     return this.checkIn.checkIn(user.id, eventId, dto);
+  }
+
+  /**
+   * Search the check-in roster.
+   * @remarks Requires the CHECKIN module. Match by ticket number, attendee email or attendee
+   * name; optionally filter by check-in state. For finding someone without their ticket to hand.
+   */
+  @Get('attendees')
+  @ApiPaginatedResponse(TicketResponseDto, { description: 'Matching tickets' })
+  @ApiProblemResponse(403, 'Missing CHECKIN access')
+  search(
+    @Param('eventId') eventId: string,
+    @Query() query: CheckInSearchQuery,
+  ): Promise<Paginated<Ticket>> {
+    return this.checkIn.search(eventId, {
+      limit: query.limit ?? DEFAULT_LIMIT,
+      cursor: query.cursor,
+      search: query.search,
+      status: query.status,
+    });
   }
 
   /**

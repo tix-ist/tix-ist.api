@@ -86,8 +86,9 @@ that contract**, not improvised.
   (scoped to the event) — **idempotent**: an already-checked-in ticket returns success with
   `alreadyCheckedIn: true` and isn't re-stamped; otherwise sets `isCheckedIn`/`checkedInAt`/`checkedInBy`.
   `GET .../ticket/{ticketNumber}` is the pre-check-in confirmation; `GET .../metrics` gives live
-  counts (total/checked-in/remaining/%) + the 10 most recent. No new model (uses the `Ticket` columns).
-  This completes the ticket lifecycle: issue → assign → check in.
+  counts (total/checked-in/remaining/%) + the 10 most recent; `GET .../attendees` is the door-staff
+  roster search (by ticket number, attendee **email** or name; optional checked-in filter). No new
+  model (uses the `Ticket` columns). This completes the ticket lifecycle: issue → assign → check in.
 - **Attendees (wired):** the person who attends (distinct from the buyer), 1:1 with a `Ticket`, in
   `src/attendees/`. Created on **ticket assignment** (`TicketsService.assign`/`unassign`): authz is
   buyer-or-`TICKETS`; **cutoff-gated** (`events/assignment-cutoff.ts` from the event's

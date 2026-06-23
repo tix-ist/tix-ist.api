@@ -4,11 +4,26 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Prisma, Ticket } from '@prisma/client';
+import { Paginated } from '../common/pagination/paginated';
 import { PrismaService } from '../prisma/prisma.service';
 
 interface CheckInInput {
   ticketNumber?: string;
   qrCodeData?: string;
+}
+
+/** Check-in roster filter on check-in state. */
+export const CheckInFilter = {
+  CheckedIn: 'checked-in',
+  NotCheckedIn: 'not-checked-in',
+} as const;
+export type CheckInFilter = (typeof CheckInFilter)[keyof typeof CheckInFilter];
+
+interface SearchParams {
+  limit: number;
+  cursor?: string;
+  search?: string;
+  status?: CheckInFilter;
 }
 
 export interface CheckInResult {
@@ -76,6 +91,39 @@ export class CheckInService {
       include: WITH_PEOPLE,
     });
     return { alreadyCheckedIn: false, ticket: updated };
+  }
+
+  /**
+   * Door-staff roster search: find an event's tickets by ticket number, attendee email
+   * or attendee name (case-insensitive), optionally filtered by check-in state. Lets
+   * staff look someone up when they don't have their ticket/QR to hand.
+   */
+  async search(
+    eventId: string,
+    params: SearchParams,
+  ): Promise<Paginated<Ticket>> {
+    const { limit, cursor, search, status } = params;
+    const where: Prisma.TicketWhereInput = {
+      eventId,
+      ...(status === CheckInFilter.CheckedIn && { isCheckedIn: true }),
+      ...(status === CheckInFilter.NotCheckedIn && { isCheckedIn: false }),
+      ...(search && {
+        OR: [
+          { ticketNumber: { contains: search, mode: 'insensitive' } },
+          { attendee: { email: { contains: search, mode: 'insensitive' } } },
+          { attendee: { name: { contains: search, mode: 'insensitive' } } },
+        ],
+      }),
+    };
+    const rows = await this.prisma.ticket.findMany({
+      where,
+      take: limit + 1,
+      ...(cursor && { cursor: { id: cursor }, skip: 1 }),
+      orderBy: { createdAt: 'desc' },
+      include: WITH_PEOPLE,
+    });
+    const nextCursor = rows.length > limit ? (rows.pop()?.id ?? null) : null;
+    return new Paginated(rows, nextCursor);
   }
 
   /** Ticket details for the confirmation step before checking in (scoped to the event). */

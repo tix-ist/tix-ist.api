@@ -147,4 +147,43 @@ describe('CheckInService', () => {
       expect(m.checkInPercentage).toBe(0);
     });
   });
+
+  describe('search', () => {
+    it('matches ticket number, attendee email and name; scoped to the event', async () => {
+      c.prisma.ticket.findMany.mockResolvedValue([{ id: 'tk1' }]);
+      await c.service.search('e1', { limit: 20, search: 'ada@example.com' });
+      const where = c.prisma.ticket.findMany.mock.calls[0][0].where;
+      expect(where.eventId).toBe('e1');
+      expect(where.OR).toEqual([
+        { ticketNumber: { contains: 'ada@example.com', mode: 'insensitive' } },
+        {
+          attendee: {
+            email: { contains: 'ada@example.com', mode: 'insensitive' },
+          },
+        },
+        {
+          attendee: {
+            name: { contains: 'ada@example.com', mode: 'insensitive' },
+          },
+        },
+      ]);
+    });
+
+    it('filters by check-in status and derives nextCursor', async () => {
+      c.prisma.ticket.findMany.mockResolvedValue([
+        { id: 'tk1' },
+        { id: 'tk2' },
+        { id: 'tk3' },
+      ]);
+      const page = await c.service.search('e1', {
+        limit: 2,
+        status: 'not-checked-in',
+      });
+      const where = c.prisma.ticket.findMany.mock.calls[0][0].where;
+      expect(where.isCheckedIn).toBe(false);
+      expect(where.OR).toBeUndefined();
+      expect(page.items.map((t: any) => t.id)).toEqual(['tk1', 'tk2']);
+      expect(page.nextCursor).toBe('tk3');
+    });
+  });
 });
