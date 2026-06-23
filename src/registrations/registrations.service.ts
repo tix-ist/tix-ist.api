@@ -3,14 +3,18 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma, Registration } from '@prisma/client';
+import { Prisma, Registration, Ticket } from '@prisma/client';
 import { Paginated } from '../common/pagination/paginated';
 import { EventStatus } from '../events/event.constants';
 import { PermissionsService } from '../permissions/permissions.service';
 import { Module } from '../permissions/permissions.types';
 import { PrismaService } from '../prisma/prisma.service';
+import { buildTicketRows } from '../tickets/ticket-identity';
 import { PaymentStatus } from './registration.constants';
 import { RegisterDto } from './dto/register.dto';
+
+/** A registration plus the admission tickets minted for it. */
+export type RegistrationWithTickets = Registration & { tickets: Ticket[] };
 
 /** Row shape from the FOR UPDATE lock query. */
 interface LockedTier {
@@ -41,7 +45,10 @@ export class RegistrationsService {
    * oversold. Only **free** tiers of a **published** event are registrable until
    * the payment processor lands.
    */
-  async register(dto: RegisterDto, userId?: string): Promise<Registration> {
+  async register(
+    dto: RegisterDto,
+    userId?: string,
+  ): Promise<RegistrationWithTickets> {
     const quantity = dto.quantity ?? 1;
 
     return this.prisma.$transaction(async (tx) => {
@@ -109,8 +116,8 @@ export class RegistrationsService {
         );
       }
 
-      // 7. Record the registration (atomic with the lock).
-      return tx.registration.create({
+      // 7. Record the registration and mint its admission tickets (atomic with the lock).
+      const registration = await tx.registration.create({
         data: {
           eventId: tier.eventId,
           ticketTypeId: tier.id,
@@ -121,6 +128,19 @@ export class RegistrationsService {
           paymentStatus: PaymentStatus.Free,
         },
       });
+      await tx.ticket.createMany({
+        data: buildTicketRows({
+          registrationId: registration.id,
+          eventId: tier.eventId,
+          ticketTypeId: tier.id,
+          quantity,
+        }),
+      });
+      const tickets = await tx.ticket.findMany({
+        where: { registrationId: registration.id },
+        orderBy: { createdAt: 'asc' },
+      });
+      return { ...registration, tickets };
     });
   }
 

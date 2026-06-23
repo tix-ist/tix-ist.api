@@ -10,6 +10,7 @@ function setup() {
     $queryRaw: jest.fn(),
     event: { findUnique: jest.fn() },
     registration: { aggregate: jest.fn(), create: jest.fn() },
+    ticket: { createMany: jest.fn(), findMany: jest.fn() },
   } as any;
   const prisma = {
     registration: {
@@ -70,9 +71,11 @@ describe('RegistrationsService', () => {
         _sum: { quantity: sold },
       });
       c.tx.registration.create.mockResolvedValue({ id: 'r1' });
+      c.tx.ticket.createMany.mockResolvedValue({ count: 1 });
+      c.tx.ticket.findMany.mockResolvedValue([{ id: 'tk1' }]);
     }
 
-    it('registers for a free tier with capacity', async () => {
+    it('registers for a free tier with capacity and returns minted tickets', async () => {
       arrange(tier(), publishedEvent(), 10);
       const reg = await c.service.register(dto);
       expect(c.tx.registration.create).toHaveBeenCalledWith(
@@ -87,7 +90,21 @@ describe('RegistrationsService', () => {
           }),
         }),
       );
-      expect(reg).toEqual({ id: 'r1' });
+      expect(reg).toEqual({ id: 'r1', tickets: [{ id: 'tk1' }] });
+    });
+
+    it('mints one ticket per requested quantity', async () => {
+      arrange(tier(), publishedEvent(), 0);
+      await c.service.register({ ...dto, quantity: 3 });
+      const rows = c.tx.ticket.createMany.mock.calls[0][0].data;
+      expect(rows).toHaveLength(3);
+      expect(rows[0]).toMatchObject({
+        registrationId: 'r1',
+        eventId: 'e1',
+        ticketTypeId: 'tt1',
+      });
+      expect(typeof rows[0].ticketNumber).toBe('string');
+      expect(typeof rows[0].qrCodeData).toBe('string');
     });
 
     it('locks the tier row before counting (FOR UPDATE)', async () => {

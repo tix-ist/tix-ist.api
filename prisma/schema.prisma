@@ -74,6 +74,7 @@ model Event {
   // Ticketing
   ticketTypes   TicketType[]
   registrations Registration[]
+  tickets       Ticket[]
 
   // Team collaboration
   teamMembers TeamMember[]
@@ -109,6 +110,7 @@ model TicketType {
   saleEnd   DateTime? // null = no end restriction
 
   registrations Registration[]
+  tickets       Ticket[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -143,6 +145,8 @@ model Registration {
   paymentIntentId  String? // dormant until a processor lands
   paymentProcessor String? // 'stripe' | 'paystack' | null
 
+  tickets Ticket[]
+
   registeredAt DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -152,6 +156,48 @@ model Registration {
   @@index([userId])
   @@index([eventId, ticketTypeId])
   @@index([registeredAt])
+}
+
+/// An individual admission token — one per seat. Minted (unassigned) when a free
+/// registration is created, in the same locked transaction. Carries a public-facing
+/// `ticketNumber` and a high-entropy `qrCodeData` payload (the QR encodes this; image
+/// rendering is a client concern). Assignment to an `Attendee` (the `attendeeId` 1:1 FK)
+/// and check-in land in later slices — the columns exist now but aren't wired yet.
+model Ticket {
+  id String @id @default(cuid())
+
+  registrationId String
+  registration   Registration @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+
+  eventId String
+  event   Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  ticketTypeId String
+  ticketType   TicketType @relation(fields: [ticketTypeId], references: [id], onDelete: Restrict)
+
+  ticketNumber String @unique // human-readable, e.g. TKT-<ts>-<rand>
+  qrCodeData   String @unique // high-entropy QR payload
+
+  // Assignment (wired in the Attendees slice; attendee FK added then)
+  isAssigned Boolean   @default(false)
+  assignedAt DateTime?
+  attendeeId String?   @unique
+
+  // Check-in (wired in the CheckIn slice)
+  isCheckedIn Boolean   @default(false)
+  checkedInAt DateTime?
+  checkedInBy String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([registrationId])
+  @@index([eventId])
+  @@index([ticketTypeId])
+  @@index([ticketNumber])
+  @@index([qrCodeData])
+  @@index([eventId, isCheckedIn])
+  @@index([eventId, isAssigned])
 }
 
 enum TeamRole {

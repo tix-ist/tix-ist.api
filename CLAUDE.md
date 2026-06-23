@@ -13,7 +13,7 @@ that contract**, not improvised.
   header redaction. Log via the injected `Logger`/`PinoLogger` from `nestjs-pino`, never `console`.
 - **Database (wired):** Prisma 6 + PostgreSQL. Global `PrismaModule`/`PrismaService`
   (`src/prisma/`); schema at `prisma/schema.prisma` grows **incrementally per feature slice**
-  (`User`, `Event`, `TeamMember`, `Invitation`, `TicketType`, `Registration` so far). `DATABASE_URL` is **composed** from `DB_*` parts via dotenv expansion
+  (`User`, `Event`, `TeamMember`, `Invitation`, `TicketType`, `Registration`, `Ticket` so far). `DATABASE_URL` is **composed** from `DB_*` parts via dotenv expansion
   (`expandVariables: true`); edit the parts, not the URL. After schema changes run
   `yarn db:migrate` (dev) and `yarn db:generate`.
 - **Auth (wired):** email+password register/login → JWT **access + refresh** (rotation;
@@ -67,8 +67,20 @@ that contract**, not improvised.
   joined aggregate). Organizer list (`@RequireModule('ATTENDEES')`) at `/events/{eventId}/registrations`;
   get (event access) + `POST /registrations/{id}/cancel` (ATTENDEES, **hard-delete** → frees the slot).
   **Only free tiers of a published event are registrable** (paid blocked) until the processor lands;
-  `paymentStatus` defaults to `free` (payment fields dormant). Deferred: organizer manual-add, CSV
-  export, resend, public buyer self-service, email-status webhook, custom-field responses (Attendees).
+  `paymentStatus` defaults to `free` (payment fields dormant). A successful registration **mints its
+  tickets** (see Tickets) in the same transaction and returns the order **plus** its tickets. Deferred:
+  organizer manual-add, CSV export, resend, public buyer self-service, email-status webhook,
+  custom-field responses (Attendees).
+- **Tickets (wired):** issued admission tokens in `src/tickets/`, one per seat. Minted (unassigned)
+  when a free registration is created — `RegistrationsService` calls `buildTicketRows()`
+  (`tickets/ticket-identity.ts`) inside the locked txn to `createMany` `quantity` rows, each with a
+  human-readable `ticketNumber` (`TKT-…`) and a high-entropy `qrCodeData` payload (the QR encodes
+  this; image rendering is a client concern). Reads: organizer list (`@RequireModule('ATTENDEES')`)
+  at `/events/{eventId}/tickets` (filter tier/assigned/checked-in), get at `/tickets/{id}` (event
+  access), public lookup at `/public/tickets/{ticketNumber}` (the number is the holder's credential).
+  Deferred: optimistic-locked **assignment** to an attendee + cutoff gating (Attendees slice adds the
+  `attendeeId` FK), **check-in** (CheckIn slice), QR-image rendering — those columns exist but are
+  unwired. Inventory `soldCount` stays registration-based (1:1 with tickets, so equal).
 - **Users / `/me` (wired):** the authenticated caller's own profile — `GET /me` (profile),
   `PATCH /me` (update name/email/image; email change checks uniqueness, resets `emailVerified`,
   and evicts the auth cache), `POST /me/change-password` (verifies current password). Source in
@@ -181,6 +193,7 @@ src/
   events/                # organizer CRUD + status flow + public discovery (/public/events)
   ticket-types/          # purchasable tiers (BigInt price); event-scoped + flat + public
   registrations/         # concurrency-safe self-registration (FOR UPDATE) + organizer list/cancel
+  tickets/               # admission tickets: issuance (on registration), identity, list/get/lookup
   permissions/           # event RBAC: PermissionsService + EventAccess/Module/Owner guards
   team/                  # team membership + invitation lifecycle (invite/accept/decline/manage)
   common/                # @Public()/@CurrentUser() decorators + JwtAuthGuard

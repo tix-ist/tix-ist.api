@@ -1,3 +1,5 @@
+import { TicketResponseDto } from '../../tickets/dto/ticket-response.dto';
+
 /** A registration (order) as returned by the API. */
 export class RegistrationResponseDto {
   /** Unique registration id (cuid). */
@@ -26,4 +28,10 @@ export class RegistrationResponseDto {
 
   /** When the registration was made. */
   registeredAt!: Date;
+}
+
+/** A registration plus the admission tickets minted for it (registration confirmation). */
+export class RegistrationConfirmationDto extends RegistrationResponseDto {
+  /** One ticket per admission, each with its number and QR payload. */
+  tickets!: TicketResponseDto[];
 }

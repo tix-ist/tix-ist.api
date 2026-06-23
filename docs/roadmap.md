@@ -70,7 +70,13 @@ The purchase path. Registration is the concurrency-critical flow (row-lock, no o
   to real data — availability is now live. Deferred: organizer manual-add, CSV export, resend
   confirmation, public buyer self-service (lookup / by-id), email-status webhook, and custom-field
   responses (Attendee slice).
-- ⬜ **Tickets** — issued admission tickets, QR identity, optimistic-locked assignment (`expectedUpdatedAt`)
+- 🟡 **Tickets** — `Ticket` model; a free registration now mints `quantity` unassigned tickets in
+  the same locked transaction (`ticketNumber` + high-entropy `qrCodeData`). Reads: organizer list
+  (`@RequireModule('ATTENDEES')`) at `/events/{eventId}/tickets` (filter by tier/assigned/checked-in),
+  get at `/tickets/{id}` (event access), public lookup at `/public/tickets/{ticketNumber}`. Register
+  now returns the order **plus its tickets**. Deferred: optimistic-locked **assignment** to an
+  attendee + cutoff gating (Attendees slice — adds the `attendeeId` FK), **check-in** (CheckIn slice),
+  and QR-image rendering. The assignment/check-in columns exist now but aren't wired.
 - ⬜ **Attendees** — custom-field responses, email state, CSV import, list export
 
 ---
