@@ -10,7 +10,7 @@ function setup() {
     $queryRaw: jest.fn(),
     event: { findUnique: jest.fn() },
     registration: { aggregate: jest.fn(), create: jest.fn() },
-  };
+  } as any;
   const prisma = {
     registration: {
       findUnique: jest.fn(),

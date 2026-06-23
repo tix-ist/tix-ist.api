@@ -26,6 +26,10 @@ jobs:
 
       - run: yarn lint:check
 
+      # type-checks the whole project incl. *.spec.ts (nest build excludes specs,
+      # and ts-jest runs transpile-only — so this is the only spec type-check)
+      - run: yarn typecheck
+
       - run: yarn build
 
       - run: yarn test

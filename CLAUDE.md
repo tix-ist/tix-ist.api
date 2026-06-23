@@ -141,8 +141,11 @@ TICKETS, SCHEDULE, SPEAKERS, CFP, COMMUNICATIONS, CHECKIN` (assignable); `SETTIN
   (auto-merged) switches the api to **development** for local work. Run dev:
   `docker compose --env-file .env.docker up`; prod-like: add `-f docker-compose.yml`.
   Config in committed `.env.docker` (no `NODE_ENV` there — the target decides).
-- **CI:** GitHub Actions (`.github/workflows/ci.yml`) — `lint:check` + `build` + unit `test`
-  on push/PR (hermetic), plus commitlint on PRs. Use `yarn lint:check` (no `--fix`) for CI-style checks.
+- **CI:** GitHub Actions (`.github/workflows/ci.yml`) — `lint:check` + `typecheck` + `build` +
+  unit `test` on push/PR (hermetic), plus commitlint on PRs. `yarn typecheck` (`tsc --noEmit`)
+  is the **only** thing that type-checks `*.spec.ts` — `nest build` excludes specs and ts-jest runs
+  transpile-only (`isolatedModules`), so without it spec type errors slip through. Run it after
+  touching specs/DTOs.
 
 ## Commands
 

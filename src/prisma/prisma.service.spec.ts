@@ -1,3 +1,4 @@
+import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { PrismaService } from './prisma.service';
 
 describe('PrismaService', () => {

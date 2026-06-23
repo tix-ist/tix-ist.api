@@ -9,9 +9,9 @@ const config = {
 describe('JwtStrategy', () => {
   it('resolves the auth user from the (cached) AuthUserService', async () => {
     const authUser = {
-      getById: jest
-        .fn()
-        .mockResolvedValue({ id: 'u1', email: 'a@b.com', name: 'Ada' }),
+      getById: jest.fn(() =>
+        Promise.resolve({ id: 'u1', email: 'a@b.com', name: 'Ada' }),
+      ),
     } as any;
     const strategy = new JwtStrategy(config, authUser);
 
@@ -22,7 +22,9 @@ describe('JwtStrategy', () => {
   });
 
   it('throws when the user no longer exists', async () => {
-    const authUser = { getById: jest.fn().mockResolvedValue(null) } as any;
+    const authUser = {
+      getById: jest.fn(() => Promise.resolve(null)),
+    } as any;
     const strategy = new JwtStrategy(config, authUser);
 
     await expect(strategy.validate({ sub: 'gone' })).rejects.toBeInstanceOf(

@@ -1,12 +1,13 @@
 import { describe, expect, it, jest, beforeEach } from '@jest/globals';
 import { ConflictException, NotFoundException } from '@nestjs/common';
+import { CreateEventDto } from './dto/create-event.dto';
 import { EventsService } from './events.service';
 
 function setup() {
   const tx = {
     event: { create: jest.fn() },
     teamMember: { create: jest.fn() },
-  };
+  } as any;
   const prisma = {
     event: {
       findUnique: jest.fn(),
@@ -32,7 +33,7 @@ const baseCreate = {
   timezone: 'Africa/Lagos',
   startDate: new Date('2026-09-01T09:00:00Z'),
   endDate: new Date('2026-09-01T17:00:00Z'),
-};
+} satisfies CreateEventDto;
 
 describe('EventsService', () => {
   let c: ReturnType<typeof setup>;

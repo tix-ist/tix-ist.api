@@ -1,5 +1,6 @@
 import { describe, expect, it, jest, beforeEach } from '@jest/globals';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { Module, ModuleName } from '../permissions/permissions.types';
 import { TeamService } from './team.service';
 
 function setup() {
@@ -12,7 +13,7 @@ function setup() {
       findUnique: jest.fn(),
       deleteMany: jest.fn(),
     },
-  };
+  } as any;
   const prisma = {
     teamMember: {
       findUnique: jest.fn(),
@@ -43,7 +44,7 @@ describe('TeamService', () => {
   describe('invite', () => {
     const dto = {
       email: 'New@Example.com',
-      modulePermissions: ['CFP'] as const,
+      modulePermissions: [Module.Cfp] as ModuleName[],
     };
 
     it('rejects inviting yourself', async () => {
@@ -209,7 +210,7 @@ describe('TeamService', () => {
         role: 'COLLABORATOR',
         status: 'ACTIVE',
       });
-      c.prisma.teamMember.update = jest.fn().mockResolvedValue({ id: 'm1' });
+      c.prisma.teamMember.update = jest.fn(() => Promise.resolve({ id: 'm1' }));
       await c.service.updatePermissions('owner1', 'm1', ['CFP', 'ATTENDEES']);
       expect(c.prisma.teamMember.update).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -240,7 +241,7 @@ describe('TeamService', () => {
         role: 'COLLABORATOR',
         status: 'ACTIVE',
       });
-      c.prisma.teamMember.update = jest.fn().mockResolvedValue({ id: 'm1' });
+      c.prisma.teamMember.update = jest.fn(() => Promise.resolve({ id: 'm1' }));
       await c.service.removeMember('owner1', 'm1');
       expect(c.permissions.checkIsOwner).toHaveBeenCalledWith('e1', 'owner1');
       expect(c.prisma.teamMember.update).toHaveBeenCalledWith(
