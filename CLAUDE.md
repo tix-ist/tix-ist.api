@@ -78,9 +78,16 @@ that contract**, not improvised.
   this; image rendering is a client concern). Reads: organizer list (`@RequireModule('ATTENDEES')`)
   at `/events/{eventId}/tickets` (filter tier/assigned/checked-in), get at `/tickets/{id}` (event
   access), public lookup at `/public/tickets/{ticketNumber}` (the number is the holder's credential).
-  **Assignment** lives here too: `POST`/`DELETE /tickets/{id}/assignee` (see Attendees). Deferred:
-  **check-in** (CheckIn slice), QR-image rendering. Inventory `soldCount` stays registration-based
+  **Assignment** lives here too: `POST`/`DELETE /tickets/{id}/assignee` (see Attendees). **Check-in**
+  is in the CheckIn slice. Deferred: QR-image rendering. Inventory `soldCount` stays registration-based
   (1:1 with tickets, so equal).
+- **CheckIn (wired):** on-site check-in in `src/check-in/`, all `@RequireModule('CHECKIN')` under
+  `/events/{eventId}/check-in`. `POST` checks a ticket in by `ticketNumber` **or** `qrCodeData`
+  (scoped to the event) — **idempotent**: an already-checked-in ticket returns success with
+  `alreadyCheckedIn: true` and isn't re-stamped; otherwise sets `isCheckedIn`/`checkedInAt`/`checkedInBy`.
+  `GET .../ticket/{ticketNumber}` is the pre-check-in confirmation; `GET .../metrics` gives live
+  counts (total/checked-in/remaining/%) + the 10 most recent. No new model (uses the `Ticket` columns).
+  This completes the ticket lifecycle: issue → assign → check in.
 - **Attendees (wired):** the person who attends (distinct from the buyer), 1:1 with a `Ticket`, in
   `src/attendees/`. Created on **ticket assignment** (`TicketsService.assign`/`unassign`): authz is
   buyer-or-`TICKETS`; **cutoff-gated** (`events/assignment-cutoff.ts` from the event's
@@ -205,6 +212,7 @@ src/
   registrations/         # concurrency-safe self-registration (FOR UPDATE) + organizer list/cancel
   tickets/               # admission tickets: issuance, identity, list/get/lookup, assign/unassign
   attendees/             # attendee (1:1 ticket); list/get — created via ticket assignment
+  check-in/              # on-site check-in (idempotent) + live metrics (CHECKIN module)
   permissions/           # event RBAC: PermissionsService + EventAccess/Module/Owner guards
   team/                  # team membership + invitation lifecycle (invite/accept/decline/manage)
   common/                # @Public()/@CurrentUser() decorators + JwtAuthGuard

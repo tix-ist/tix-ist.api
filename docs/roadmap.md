@@ -98,7 +98,12 @@ The purchase path. Registration is the concurrency-critical flow (row-lock, no o
 ## Phase 4 — Engagement & operations
 
 - ⬜ **Communications** — email campaigns to attendee segments + delivery analytics
-- ⬜ **CheckIn** — on-site check-in by ticket number / QR (idempotent), live metrics
+- 🟡 **CheckIn** — on-site check-in under `/events/{eventId}/check-in` (all `@RequireModule('CHECKIN')`):
+  `POST` checks a ticket in by number **or** QR, scoped to the event, **idempotent** (already-checked-in
+  is a no-op returning `alreadyCheckedIn`), stamping `checkedInBy`; `GET .../ticket/{ticketNumber}`
+  for the pre-check-in confirmation; `GET .../metrics` (total / checked-in / remaining / % + 10 most
+  recent). No new model — uses the `Ticket` check-in columns. Completes the ticket lifecycle
+  (issue → assign → check in). Deferred: the `/check-in/attendees` list (the Attendees list covers it).
 - ⬜ **Uploads** — file uploads via pluggable `StorageAdapter`
 - ⬜ **Webhooks** — inbound provider webhooks (e.g. `POST /webhooks/email`), signature-verified
 - ⬜ **Jobs** — scheduler-triggered maintenance (close expired CFPs, send campaigns, expire invitations)

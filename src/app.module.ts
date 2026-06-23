@@ -17,6 +17,7 @@ import { TicketTypesModule } from './ticket-types/ticket-types.module';
 import { RegistrationsModule } from './registrations/registrations.module';
 import { TicketsModule } from './tickets/tickets.module';
 import { AttendeesModule } from './attendees/attendees.module';
+import { CheckInModule } from './check-in/check-in.module';
 import { CommonModule } from './common/common.module';
 
 @Module({
@@ -59,6 +60,7 @@ import { CommonModule } from './common/common.module';
     RegistrationsModule,
     TicketsModule,
     AttendeesModule,
+    CheckInModule,
   ],
   controllers: [AppController],
   providers: [AppService],
